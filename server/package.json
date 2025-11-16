@@ -1,0 +1,39 @@
+{
+    "name": "markdown-to-pdf-converter",
+    "version": "1.0.0",
+    "description": "A web-based Markdown to PDF converter using Puppeteer",
+    "type": "module",
+    "main": "server.js",
+    "scripts": {
+        "start": "node server.js",
+        "dev": "nodemon server.js",
+        "convert": "node md-to-pdf-github.js",
+        "postinstall": "node -e \"console.log('Installation completed successfully!')\""
+    },
+    "keywords": [
+        "markdown",
+        "pdf",
+        "converter",
+        "puppeteer",
+        "web",
+        "html"
+    ],
+    "author": "",
+    "license": "MIT",
+    "dependencies": {
+        "archiver": "^7.0.1",
+        "cors": "^2.8.5",
+        "express": "^4.21.2",
+        "marked": "^9.1.2",
+        "marked-katex-extension": "^5.0.1",
+        "multer": "^2.0.0-rc.4",
+        "pdf-lib": "^1.17.1",
+        "puppeteer": "^24.9.0"
+    },
+    "devDependencies": {
+        "nodemon": "^3.0.1"
+    },
+    "engines": {
+        "node": ">=14.0.0"
+    }
+}
