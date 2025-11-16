@@ -118,10 +118,6 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
             const fileStream = fs.createReadStream(singleFile.path);
             fileStream.pipe(res);
 
-            fileStream.on('end', () => {
-                cleanupFiles([...inputFiles, singleFile.path]);
-            });
-
             fileStream.on('error', (err) => {
                 console.error('Error streaming file:', err);
                 cleanupFiles([...inputFiles, singleFile.path]);
@@ -157,10 +153,6 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
 
             const fileStream = fs.createReadStream(zipFile);
             fileStream.pipe(res);
-
-            fileStream.on('end', () => {
-                cleanupFiles([...inputFiles, ...outputFiles.map(f => f.path), zipFile]);
-            });
 
             fileStream.on('error', (err) => {
                 console.error('Error streaming zip:', err);
