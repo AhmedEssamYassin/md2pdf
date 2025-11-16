@@ -412,7 +412,7 @@ async function mdToPdf(inputFile, outputFile, title) {
 </body>
 </html>`;
 
-    console.log("🚀 Launching browser...");
+    console.log("Launching browser...");
     const browser = await puppeteer.launch({
         headless: "new",
         args: ['--no-sandbox', '--disable-setuid-sandbox']
@@ -421,14 +421,14 @@ async function mdToPdf(inputFile, outputFile, title) {
 
     await page.setContent(html, { waitUntil: 'networkidle0' });
 
-    console.log("🎨 Rendering content...");
+    console.log("Rendering content...");
     await page.waitForSelector('body.render-complete', { timeout: 30000 });
 
     // Give extra time for syntax highlighting to complete
-    console.log("✅ Rendering complete.");
+    console.log("Rendering complete.");
     await new Promise(resolve => setTimeout(resolve, 500));
 
-    console.log("📄 Generating PDF with bookmarks...");
+    console.log("Generating PDF with bookmarks...");
 
     // Get element positions for bookmarks
     const bookmarkData = [];
@@ -473,23 +473,23 @@ async function mdToPdf(inputFile, outputFile, title) {
 
     // Write PDF with bookmarks using pdf-lib
     if (bookmarkData.length > 0) {
-        console.log("🔖 Adding bookmarks to PDF...");
+        console.log("Adding bookmarks to PDF...");
         await addBookmarksToPdf(pdfBuffer, outputFile, bookmarkData);
-        console.log(`✨ PDF created successfully with ${bookmarkData.length} bookmarks: ${outputFile}`);
+        console.log(`PDF created successfully with ${bookmarkData.length} bookmarks: ${outputFile}`);
     } else {
         fs.writeFileSync(outputFile, pdfBuffer);
-        console.log(`✨ PDF created successfully: ${outputFile}`);
+        console.log(`PDF created successfully: ${outputFile}`);
     }
 }
 
 const [, , inputFile, outputFile, title] = process.argv;
 
 if (!inputFile) {
-    console.error("❌ Usage: node script.js <input.md> [output.pdf] [title]");
+    console.error("Usage: node script.js <input.md> [output.pdf] [title]");
     process.exit(1);
 }
 const finalOutputFile = outputFile || `${path.basename(inputFile, '.md')}.pdf`;
 mdToPdf(inputFile, finalOutputFile, title).catch(error => {
-    console.error("❌ An error occurred:", error);
+    console.error("An error occurred:", error);
     process.exit(1);
 });

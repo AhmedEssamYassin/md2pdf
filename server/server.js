@@ -25,7 +25,7 @@ const CONFIG = {
 const app = express();
 
 // Middleware for JSON and URL-encoded data
-app.use(cors()); // Allows requests from your frontend
+app.use(cors()); // Allows requests from frontend
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -332,12 +332,12 @@ function startServer() {
     validateEnvironment();
 
     const server = app.listen(CONFIG.PORT, () => {
-        console.log(`🚀 Markdown to PDF Converter server running on http://localhost:${CONFIG.PORT}`);
-        console.log(`📁 Client files served from: ${CONFIG.CLIENT_DIR}`);
-        console.log(`📁 Upload directory: ${CONFIG.UPLOAD_DIR}`);
-        console.log(`📁 Output directory: ${CONFIG.OUTPUT_DIR}`);
-        console.log(`🔧 Max file size: ${CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB`);
-        console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+        console.log(`Markdown to PDF Converter server running on http://localhost:${CONFIG.PORT}`);
+        console.log(`Client files served from: ${CONFIG.CLIENT_DIR}`);
+        console.log(`Upload directory: ${CONFIG.UPLOAD_DIR}`);
+        console.log(`Output directory: ${CONFIG.OUTPUT_DIR}`);
+        console.log(`Max file size: ${CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB`);
+        console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
     // Graceful shutdown
@@ -348,7 +348,7 @@ function startServer() {
 }
 
 function gracefulShutdown(server) {
-    console.log('\n🛑 Shutting down server...');
+    console.log('\nShutting down server...');
 
     server.close(() => {
         console.log('Server closed');
@@ -363,7 +363,7 @@ function gracefulShutdown(server) {
                     });
                 }
             });
-            console.log('🧹 Cleaned up temporary files');
+            console.log('Cleaned up temporary files');
         } catch (err) {
             console.error('Error during cleanup:', err.message);
         }
