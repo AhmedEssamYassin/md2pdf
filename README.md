@@ -6,7 +6,7 @@ A powerful, full-featured web application that converts Markdown files to beauti
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
-## ✨ Features
+## Features
 
 ### Core Functionality
 - **Single & Batch Conversion** - Convert one or multiple Markdown files simultaneously
@@ -37,47 +37,41 @@ A powerful, full-featured web application that converts Markdown files to beauti
 
 ## 🛠️ Tech Stack
 
-### Backend
-- **Node.js** (≥18.0.0) - Runtime environment
-- **Express.js** (4.21.2) - Web framework
-- **Puppeteer** (24.17.0) - Headless Chrome for PDF generation
-- **Multer** (2.0.2) - File upload handling
-- **Archiver** (7.0.1) - ZIP archive creation
-- **CORS** (2.8.5) - Cross-origin resource sharing
-
-### Markdown & Rendering
-- **Marked** (9.1.6) - Markdown parser
-- **marked-katex-extension** (5.1.5) - LaTeX math support
-- **KaTeX** (0.16.22) - Math rendering
-- **Prism.js** (1.29.0) - Syntax highlighting
-
-### PDF Processing
-- **pdf-lib** (1.17.1) - PDF manipulation for bookmarks
-- **github-markdown-css** (5.5.1) - GitHub styling
-
 ### Frontend
-- **Vanilla JavaScript** - Modern ES6+ with modules
-- **CSS3** - Custom styling with animations
-- **HTML5** - Semantic markup
+- **Framework**: Vanilla JS (ES6+)
+- **Build Tool**: [Vite](https://vitejs.dev/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **UI**: Custom drag-and-drop interface with animations
+
+### Backend
+- **Runtime**: Node.js (Express.js)
+- **PDF Engine**: [Puppeteer](https://pptr.dev/) (Chrome Headless)
+- **File Handling**: Multer (Uploads), Archiver (ZIP generation)
+- **Markdown Engine**: Marked.js with `marked-katex-extension`
+
+## System Design (UML Diagram)
+![UML Diagram](./docs/system%20design%20UML.svg)
 
 ## 📋 Prerequisites
 
-- Node.js version 18.0.0 or higher
-- npm or yarn package manager
-- At least 512MB RAM available
-- Chrome/Chromium (automatically installed by Puppeteer)
+- **Node.js**: Version 18.0.0 or higher.
+- **npm**: Installed with Node.js.
+- **System**: At least 512MB RAM (required for Puppeteer/Chrome).
 
-## 🚀 Installation
+## Installation
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/markdown-to-pdf-converter.git
-cd markdown-to-pdf-converter
+git clone https://github.com/AhmedEssamYassin/md2pdf.git
+cd md2pdf
 ```
 
 ### 2. Install Dependencies
 ```bash
 npm install
+cd client && npm install
+cd ../server && npm install
+cd ..
 ```
 
 This will install all required packages including Puppeteer, which will download a compatible version of Chromium (~170MB).
@@ -88,47 +82,57 @@ node --version  # Should be ≥18.0.0
 npm --version
 ```
 
-## 🎮 Usage
+## Usage
 
-### Starting the Server
+### Development Mode
+Run the frontend (Vite) and backend (Express) concurrently from the root.
 
-#### Development Mode
-```bash
+```Bash
 npm run dev
 ```
-- Server runs on `http://localhost:3000`
-- Auto-restarts on file changes (using nodemon)
-- Detailed error messages
 
-#### Production Mode
-```bash
+- Frontend: http://localhost:5173 (Proxies API requests to backend)
+- Backend: http://localhost:3000
+
+### Production Mode
+Build the frontend and serve it via the Node.js backend.
+
+```Bash
+# 1. Build the client
+npm run build
+# 2. Start the server
 npm start
 ```
-- Optimized for performance
-- Minimal error details for security
+
+- Application: http://localhost:3000
 
 ### Command Line Conversion
-You can also convert files directly from the command line:
-
-```bash
-npm run convert input.md output.pdf "Document Title"
+You can convert files directly using the backend script without the web interface.
+```Bash
+# Usage: node server/md2pdf-converter.js <input.md> [output.pdf] [Title]
+node server/md2pdf-converter.js my-document.md output.pdf "My Report"
 ```
 
-### API Endpoints
+## API Documentation
 
-#### 1. Convert Markdown to PDF
-```http
-POST /api/convert
-Content-Type: multipart/form-data
+`POST /api/convert`\
+Converts uploaded Markdown files to PDF.
 
-Body:
-- markdowns: File[] (one or more .md files)
-- outputName: string (optional)
-```
+### Headers:
 
-**Response:**
-- Single file: PDF stream
-- Multiple files: ZIP archive stream
+- `Content-Type`: `multipart/form-data`
+
+### Body:
+
+- `markdowns`: File(s) (One or more .md files).
+
+- `outputName`: String (Optional filename for the result).
+
+### Response:
+
+- Returns `application/pdf` if one file is uploaded.
+
+- Returns `application/zip` if multiple files are uploaded.
 
 **Example using curl:**
 ```bash
@@ -160,30 +164,6 @@ GET /api/health
   "version": "1.0.0",
   "uptime": 123.45
 }
-```
-
-## 📁 Project Structure
-
-```
-md2pdf/
-├── server/                   # Backend server
-│   └── (server files)
-├── client/                   # Frontend files
-│   ├── index.html           # Main HTML file
-│   ├── styles.css           # Styling
-│   ├── App.js               # Main application logic
-│   ├── UIController.js      # UI management
-│   ├── FileHandler.js       # File validation
-│   └── ConverterService.js  # API communication
-├── Files to test/            # Sample test files
-├── node_modules/             # Dependencies (auto-generated)
-├── package.json              # Dependencies and scripts
-├── package-lock.json         # Dependency lock file
-└── README.md                 # This file
-
-Auto-created during runtime:
-├── uploads/                  # Temporary upload directory
-└── outputs/                  # Temporary output directory
 ```
 
 ## ⚙️ Configuration
@@ -252,7 +232,7 @@ JavaScript, Python, Java, C, C++, C#, TypeScript, JSX, CSS, HTML/XML, Bash, JSON
    - Graceful shutdown with cleanup
    - Timeout protection (30s per conversion)
 
-## 🐛 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -345,16 +325,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [ ] Cloud storage integration
 - [ ] User templates
 
-## 📧 Support
-
-For issues, questions, or suggestions:
-- Open an [Issue](https://github.com/yourusername/markdown-to-pdf-converter/issues)
-- Email: your.email@example.com
-
-## ⭐ Show Your Support
-
-Give a star if this project helped you!
-
 ---
 
-Made with ❤️ by [Your Name](https://github.com/AhmedEssamYassin)
+Made by [Ahmed Yassin](https://github.com/AhmedEssamYassin)
