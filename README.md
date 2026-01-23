@@ -78,7 +78,7 @@ This will install all required packages including Puppeteer, which will download
 
 ### 3. Verify Installation
 ```bash
-node --version  # Should be ≥18.0.0
+node --version  # Should be >= 18.0.0
 npm --version
 ```
 
