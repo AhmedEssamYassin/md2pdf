@@ -4,7 +4,7 @@ export class ConverterService {
     async convert(files, outputName) {
         const formData = new FormData();
         files.forEach(file => {
-            formData.append("markdowns", file);
+            formData.append("files", file);
         });
         formData.append("outputName", outputName);
 

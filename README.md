@@ -1,62 +1,65 @@
-# Markdown to PDF Converter 📄
+# Markdown to PDF Converter 
 
-A powerful, full-featured web application that converts Markdown files to beautifully formatted PDF documents with syntax highlighting, mathematical equations, and PDF bookmarks.
+A powerful, full-featured web application that converts Markdown files to professionally formatted PDF documents with syntax highlighting, mathematical equations, PDF bookmarks, auto-generated cover pages, and smart page-break optimization.
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
+![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)
 ![Node](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 
 ## Features
 
 ### Core Functionality
-- **Single & Batch Conversion** - Convert one or multiple Markdown files simultaneously
-- **Smart Output** - Single file returns PDF, multiple files return ZIP archive
-- **Beautiful Formatting** - GitHub-flavored Markdown styling with professional typography
-- **PDF Bookmarks** - Automatic bookmark generation from headings for easy navigation
-- **Syntax Highlighting** - Support for 15+ programming languages with Prism.js
-- **Math Support** - Full LaTeX/KaTeX support for mathematical equations
-- **Responsive Design** - Modern, mobile-friendly interface with drag-and-drop
-- **Real-time Progress** - Visual feedback during conversion process
+- **Single & Batch Conversion** — Convert one or multiple Markdown files simultaneously
+- **Smart Output** — Single file returns PDF directly, multiple files return a ZIP archive
+- **PDF Bookmarks** — Hierarchical, nested bookmark outlines auto-generated from headings
+- **Auto Cover Page** — Generates a title page from the document name, author, and date
+- **Auto Table of Contents** — Builds a navigable TOC from headings (skipped if you write your own)
+- **GitHub-Flavored Alerts** — `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]` rendered with native Octicon SVG icons
+- **Syntax Highlighting** — 170+ languages via Prism.js autoloader
+- **Math Support** — Full LaTeX/KaTeX support for inline and display equations
+- **Image Resource Uploads** — Upload images alongside markdown files; they are automatically linked into the PDF via basename matching
+- **Responsive Design** — Modern, mobile-friendly interface with drag-and-drop
 
-### Technical Features
-- **Secure File Handling** - Automatic cleanup and sanitized filenames
-- **Type Validation** - Multiple file type checks (extension + MIME type)
-- **Size Limits** - Configurable file size restrictions (default: 10MB per file, 50MB total)
-- **Error Handling** - Comprehensive error messages and validation
-- **CORS Support** - Cross-origin resource sharing enabled
-- **No Storage** - Files are processed and immediately deleted
-- **Health Checks** - Built-in health monitoring endpoint
+### PDF Layout
+- **Professional Typography** — Palatino body, system sans-serif headings, SF Mono code
+- **Smart Page Breaks** — Post-render measurement pass that keeps small tables, lists, and code blocks unified while allowing large ones to flow naturally
+- **Sub-Component Protection** — Individual table rows (`<tr>`) and list items (`<li>`) are never split mid-text
+- **Repeating Table Headers** — `<thead>` is duplicated at the top of every page for multi-page tables
+- **Widow/Orphan Control** — Headings are glued to their following content; paragraphs enforce minimum line counts
+- **Page Numbers** — Centered footer with document title and page count
 
-### PDF Features
-- **Page Layout** - A4 format with optimized margins
-- **Syntax Themes** - Tomorrow Night theme for code blocks
-- **Professional Fonts** - Inter for body text, Fira Code for code
-- **Page Numbers** - Automatic page numbering in footer
-- **Smart Page Breaks** - Prevents awkward splits in code blocks, tables, and lists
-- **Orphan/Widow Control** - Proper paragraph flow across pages
+### Security & Stability
+- **XSS-Safe Rendering** — All injected values (title, author) are HTML-escaped
+- **Singleton Browser** — One Chromium instance shared via isolated browser contexts per request
+- **Crash Recovery** — Automatic browser re-launch on unexpected disconnection
+- **Resource Cleanup** — `try/finally` guarantees browser contexts are closed; files are cleaned up on all paths
+- **Input Validation** — Extension checking, MIME type verification, file size limits
+- **Filename Sanitization** — Special characters stripped, path traversal prevented
+- **Security Headers** — `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 ### Frontend
-- **Framework**: Vanilla JS (ES6+)
+- **Framework**: Vanilla JS (ES6+ modules)
 - **Build Tool**: [Vite](https://vitejs.dev/)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
 - **UI**: Custom drag-and-drop interface with animations
 
 ### Backend
 - **Runtime**: Node.js (Express.js)
-- **PDF Engine**: [Puppeteer](https://pptr.dev/) (Chrome Headless)
-- **File Handling**: Multer (Uploads), Archiver (ZIP generation)
-- **Markdown Engine**: Marked.js with `marked-katex-extension`
+- **PDF Engine**: [Puppeteer](https://pptr.dev/) (Headless Chrome)
+- **Markdown**: [Marked.js](https://marked.js.org/) with [marked-katex-extension](https://www.npmjs.com/package/marked-katex-extension)
+- **PDF Metadata**: [pdf-lib](https://pdf-lib.js.org/) (bookmarks, title, author, keywords)
+- **File Handling**: Multer (uploads), Archiver (ZIP generation)
 
 ## System Design (UML Diagram)
 ![UML Diagram](./docs/system%20design%20UML.svg)
 
-## 📋 Prerequisites
+## Prerequisites
 
-- **Node.js**: Version 18.0.0 or higher.
-- **npm**: Installed with Node.js.
-- **System**: At least 512MB RAM (required for Puppeteer/Chrome).
+- **Node.js**: Version 18.0.0 or higher
+- **npm**: Installed with Node.js
+- **System**: At least 512MB RAM (required for Puppeteer/Chrome)
 
 ## Installation
 
@@ -87,107 +90,146 @@ npm --version
 ### Development Mode
 Run the frontend (Vite) and backend (Express) concurrently from the root.
 
-```Bash
+```bash
 npm run dev
 ```
 
-- Frontend: http://localhost:5173 (Proxies API requests to backend)
+- Frontend: http://localhost:5173 (proxies API requests to backend)
 - Backend: http://localhost:3000
 
 ### Production Mode
 Build the frontend and serve it via the Node.js backend.
 
-```Bash
+```bash
 # 1. Build the client
 npm run build
 # 2. Start the server
-npm start
+# On Windows (PowerShell)
+$env:NODE_ENV="production"; node server/server.js
+
+# On Linux/macOS
+NODE_ENV=production node server/server.js
 ```
 
 - Application: http://localhost:3000
 
 ### Command Line Conversion
-You can convert files directly using the backend script without the web interface.
-```Bash
-# Usage: node server/md2pdf-converter.js <input.md> [output.pdf] [Title]
-node server/md2pdf-converter.js my-document.md output.pdf "My Report"
+Convert files directly without the web interface.
+
+```bash
+# Basic usage
+node server/md2pdf-converter.js document.md
+
+# With output path and metadata
+node server/md2pdf-converter.js document.md report.pdf --author "Jane Smith" --subject "API Docs"
+
+# See all options
+node server/md2pdf-converter.js --help
 ```
+
+**CLI Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--author "Name"` | Set PDF author metadata |
+| `--subject "Topic"` | Set PDF subject metadata |
+| `--keywords "k1,k2"` | Set PDF keywords (comma-separated) |
+| `--help` | Show help message |
 
 ## API Documentation
 
-`POST /api/convert`\
+### `POST /api/convert`
+
 Converts uploaded Markdown files to PDF.
 
-### Headers:
+**Headers:** `Content-Type: multipart/form-data`
 
-- `Content-Type`: `multipart/form-data`
+**Body:**
 
-### Body:
+| Field | Type | Description |
+|-------|------|-------------|
+| `files` | File(s) | One or more `.md` files, plus optional images (`.png`, `.jpg`, `.svg`, etc.) |
+| `outputName` | String | Optional filename for the output |
+| `author` | String | Optional author for PDF metadata |
+| `coverPage` | String | Set to `"false"` to disable cover page |
+| `toc` | String | Set to `"false"` to disable auto TOC |
+| `watermark` | String | Optional watermark image URL |
 
-- `markdowns`: File(s) (One or more .md files).
+**Response:**
 
-- `outputName`: String (Optional filename for the result).
-
-### Response:
-
-- Returns `application/pdf` if one file is uploaded.
-
-- Returns `application/zip` if multiple files are uploaded.
+- Returns `application/pdf` for a single file
+- Returns `application/zip` for multiple files
 
 **Example using curl:**
 ```bash
 # Single file
-curl -X POST -F "markdowns=@document.md" \
+curl -X POST -F "files=@document.md" \
   http://localhost:3000/api/convert \
   --output document.pdf
 
-# Multiple files
+# With image resources
 curl -X POST \
-  -F "markdowns=@file1.md" \
-  -F "markdowns=@file2.md" \
+  -F "files=@document.md" \
+  -F "files=@diagram.svg" \
+  http://localhost:3000/api/convert \
+  --output document.pdf
+
+# Multiple markdown files with metadata
+curl -X POST \
+  -F "files=@file1.md" \
+  -F "files=@file2.md" \
+  -F "author=Ahmed Yassin" \
   -F "outputName=my-documents.zip" \
   http://localhost:3000/api/convert \
   --output output.zip
 ```
 
-#### 2. Health Check
-```http
-GET /api/health
-```
+### `GET /api/health`
 
 **Response:**
 ```json
 {
   "status": "OK",
   "message": "Markdown to PDF converter is running",
-  "timestamp": "2025-01-XX...",
+  "timestamp": "2026-04-17T...",
   "version": "1.0.0",
   "uptime": 123.45
 }
 ```
 
-## ⚙️ Configuration
+## Configuration
 
-Edit `server.js` to customize settings:
+### Server (`server/server.js`)
 
 ```javascript
 const CONFIG = {
-    PORT: 3000,                    // Server port
+    PORT: 3000,
     MAX_FILE_SIZE: 10 * 1024 * 1024,  // 10MB per file
-    UPLOAD_DIR: 'uploads',         // Upload directory
-    OUTPUT_DIR: 'outputs',         // Output directory
-    ALLOWED_EXTENSIONS: ['.md', '.markdown'],
-    ALLOWED_MIMETYPES: ['text/markdown', 'text/x-markdown', 'text/plain']
+    UPLOAD_DIR: 'uploads',
+    OUTPUT_DIR: 'outputs',
+    ALLOWED_EXTENSIONS: [...MARKDOWN_EXTS, ...IMAGE_EXTS],
+    // MARKDOWN_EXTS = ['.md', '.markdown']
+    // IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp']
 };
 ```
 
-Edit `FileHandler.js` for client-side limits:
+### Client (`client/src/file-handler.js`)
 
 ```javascript
-static MAX_MB = 50;  // Total size limit for all files
+static MAX_MB = 10;  // Per-file size limit (synchronized with server)
 ```
 
-## 🎨 Markdown Features Supported
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `PORT` | Server port (default: `3000`) |
+| `NODE_ENV` | `production` or `development` |
+| `PDF_AUTHOR` | Default PDF author name |
+| `PDF_SUBJECT` | Default PDF subject |
+| `PDF_KEYWORDS` | Default PDF keywords (comma-separated) |
+
+## Markdown Features Supported
 
 ### Basic Syntax
 - ✅ Headings (H1-H6)
@@ -199,38 +241,15 @@ static MAX_MB = 50;  // Total size limit for all files
 - ✅ Inline Code and Code Blocks
 
 ### Advanced Features
-- ✅ Tables
-- ✅ Task Lists
-- ✅ Footnotes
-- ✅ Definition Lists
-- ✅ Mathematical Equations (LaTeX)
+- ✅ Tables (with repeating headers on page breaks)
+- ✅ Task Lists (custom checkbox styling)
+- ✅ GitHub-Flavored Alerts (`[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`)
+- ✅ Mathematical Equations (LaTeX via KaTeX)
   - Inline: `$E = mc^2$`
   - Display: `$$\int_{0}^{\infty} e^{-x} dx = 1$$`
-
-### Syntax Highlighting Languages
-JavaScript, Python, Java, C, C++, C#, TypeScript, JSX, CSS, HTML/XML, Bash, JSON, SQL, YAML, Markdown, and many more via Prism.js autoloader.
-
-## 🔒 Security Features
-
-1. **File Validation**
-   - Extension checking (.md, .markdown)
-   - MIME type verification
-   - File size limits
-
-2. **Sanitization**
-   - Filename sanitization (removes special characters)
-   - Path traversal prevention
-
-3. **Headers**
-   - X-Content-Type-Options: nosniff
-   - X-Frame-Options: DENY
-   - X-XSS-Protection: 1; mode=block
-   - Cache-Control: no-cache
-
-4. **Cleanup**
-   - Automatic file deletion after processing
-   - Graceful shutdown with cleanup
-   - Timeout protection (30s per conversion)
+- ✅ Syntax Highlighting (170+ languages via Prism.js autoloader)
+- ✅ Manual page breaks via `<div class="page-break"></div>`
+- ✅ Image resources alongside markdown files
 
 ## Troubleshooting
 
@@ -251,17 +270,17 @@ PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install
 
 #### 2. Port Already in Use
 ```bash
-# Change port in server.js or use environment variable
+# Change port via environment variable
 PORT=3001 npm start
 ```
 
 #### 3. File Size Errors
-Increase limits in `CONFIG.MAX_FILE_SIZE` and `FileHandler.MAX_MB`
+Increase limits in both `CONFIG.MAX_FILE_SIZE` (server) and `FileHandler.MAX_MB` (client).
 
 #### 4. Permission Errors
 ```bash
 # Ensure directories are writable
-chmod 755 uploads outputs
+chmod 755 server/uploads server/outputs
 ```
 
 ### Debug Mode
@@ -270,15 +289,14 @@ Enable detailed logging:
 NODE_ENV=development npm start
 ```
 
-## 📊 Performance
+## Performance
 
-- Conversion Speed: ~2-5 seconds per page
-- Memory Usage: ~200-300MB per conversion
-- Concurrent Conversions: Handles multiple requests (limited by system resources)
-- File Size Limit: 10MB per file (configurable)
-- Total Batch Limit: 50MB (configurable)
+- **Conversion Speed**: ~2-5 seconds per page
+- **Memory Usage**: ~200-300MB (shared Chromium instance)
+- **Concurrency**: Multiple requests isolated via browser contexts
+- **File Size Limit**: 10MB per file (configurable)
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! Please follow these steps:
 
@@ -298,33 +316,18 @@ Contributions are welcome! Please follow these steps:
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Credits
+## Credits
 
 ### Libraries & Tools
-- [Puppeteer](https://pptr.dev/) - Headless Chrome automation
-- [Marked](https://marked.js.org/) - Markdown parser
-- [KaTeX](https://katex.org/) - Math typesetting
-- [Prism.js](https://prismjs.com/) - Syntax highlighting
-- [Express.js](https://expressjs.com/) - Web framework
-- [pdf-lib](https://pdf-lib.js.org/) - PDF manipulation
-- [GitHub Markdown CSS](https://github.com/sindresorhus/github-markdown-css) - Styling
+- [Puppeteer](https://pptr.dev/) — Headless Chrome automation
+- [Marked](https://marked.js.org/) — Markdown parser
+- [KaTeX](https://katex.org/) — Math typesetting
+- [Prism.js](https://prismjs.com/) — Syntax highlighting
+- [Express.js](https://expressjs.com/) — Web framework
+- [pdf-lib](https://pdf-lib.js.org/) — PDF metadata & bookmarks
+- [Archiver](https://www.archiverjs.com/) — ZIP generation
 
-### Fonts
-- [Inter](https://rsms.me/inter/) - UI and body text
-- [Fira Code](https://github.com/tonsky/FiraCode) - Monospace code font
-
-## 🗺️ Roadmap
-
-- [ ] Docker support
-- [ ] Custom CSS themes
-- [ ] Watermark support
-- [ ] Header/footer customization
-- [ ] Table of contents generation
-- [ ] Dark mode PDF option
-- [ ] Export to other formats (DOCX, HTML)
-- [ ] Cloud storage integration
-- [ ] User templates
-
----
-
-Made by [Ahmed Yassin](https://github.com/AhmedEssamYassin)
+### Typography
+- **Palatino Linotype** — Body text
+- **System Sans-Serif** — Headings (Apple, Segoe UI, Roboto)
+- **SF Mono / Consolas** — Monospace code

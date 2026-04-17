@@ -43,7 +43,7 @@
                         </svg>
                     </div>
                     <h3 class="text-xl font-semibold m-0 mb-2 text-slate-50">
-                        Drop your Markdown files here
+                        Drag & drop Markdown & Image files here
                     </h3>
                     <p class="text-slate-400 text-sm m-0 mb-6">
                         or click to browse your files
@@ -56,7 +56,7 @@
                 </div>
             </div>
 
-            <input type="file" id="fileInput" class="hidden" accept=".md,.markdown" multiple />
+            <input type="file" id="fileInput" class="hidden" accept=".md,.markdown,.png,.jpg,.jpeg,.gif,.svg,.webp" multiple />
 
             <!-- File Info -->
             <div id="fileInfo"
@@ -80,13 +80,6 @@
                         class="spinner hidden border-2 border-white/30 rounded-full border-t-white mr-2 size-4 animate-spin"></span>
                     <span id="convertText"></span>
                 </button>
-
-                <!-- Progress Bar -->
-                <div id="progressBar"
-                    class="hidden w-full h-1.5 bg-slate-950 rounded-sm overflow-hidden mt-4 border border-slate-700">
-                    <div id="progressFill" class="h-full bg-emerald-500 rounded-sm transition-[width] duration-300 w-0">
-                    </div>
-                </div>
 
                 <!-- Status Message -->
                 <div id="statusMessage" class="hidden mt-4 py-2.5 px-3 rounded font-medium text-center text-sm"></div>

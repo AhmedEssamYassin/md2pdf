@@ -1,51 +1,20 @@
+import { fileURLToPath } from 'url';
 import fs from "fs";
 import path from "path";
-import { marked } from "marked";
+import { Marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import puppeteer from "puppeteer";
 import { PDFDocument } from "pdf-lib";
 
-// --- CONFIGURATION ---
-// Configure marked with KaTeX
-marked.use(markedKatex({
+// Configuration
+// Configure marked with KaTeX for local instance use
+const katexOptions = {
     throwOnError: false,
     nonStandard: true
-}));
-
-// Custom renderer to add IDs to headings for PDF bookmarks
-const renderer = new marked.Renderer();
-const headings = [];
-
-renderer.heading = function (text, level, raw) {
-    const id = raw.toLowerCase().replace(/[^\w]+/g, '-');
-    headings.push({ level, text: raw, id });
-    // Note: I add a specific class 'section-heading' for CSS page-break logic
-    return `<h${level} id="${id}" class="section-heading level-${level}">${text}</h${level}>`;
 };
 
-renderer.code = function (code, language) {
-    const lang = language || 'plaintext';
-    const validLang = lang.toLowerCase();
-
-    // Map of characters to escape
-    const map = {
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-    };
-
-    // Single-pass regex replacement (Faster & Cleaner)
-    const escapedCode = code.replace(/[&<>"']/g, (char) => map[char]);
-
-    return `<pre><code class="language-${validLang}">${escapedCode}</code></pre>`;
-};
-
-marked.use({ renderer });
-
-// --- STYLING ---
-// Professional book-quality typography and print optimization
+// Styling
+// Print layout optimizations for rendering PDF
 const INLINE_STYLES = `
     :root {
         /* Book-quality fonts */
@@ -67,9 +36,8 @@ const INLINE_STYLES = `
     }
 
     /* CSS RESET & PRINT SETUP */
-    @page {
-        margin: 2cm;
-    }
+    /* NOTE: @page margin is intentionally omitted. Puppeteer's margin option controls page margins.
+       Having both causes conflicting content-height calculations and incorrect page breaks. */
 
     * {
         box-sizing: border-box;
@@ -86,29 +54,6 @@ const INLINE_STYLES = `
         text-align: left;
         hyphens: auto; /* Better text flow */
         -webkit-hyphens: auto;
-    }
-
-    /* AUTO-NUMBERING */
-    body { counter-reset: h1counter; }
-    
-    h1 { counter-reset: h2counter; }
-    h1::before {
-        counter-increment: h1counter;
-        content: counter(h1counter) ". ";
-        color: var(--color-heading-number);
-    }
-
-    h2 { counter-reset: h3counter; }
-    h2::before {
-        counter-increment: h2counter;
-        content: counter(h1counter) "." counter(h2counter) " ";
-        color: var(--color-heading-number);
-    }
-    
-    h3::before {
-        counter-increment: h3counter;
-        content: counter(h1counter) "." counter(h2counter) "." counter(h3counter) " ";
-        color: var(--color-heading-number);
     }
 
     /* HEADINGS */
@@ -158,31 +103,31 @@ const INLINE_STYLES = `
         background-color: var(--color-bg-code);
         padding: 12px 14px;
         border-radius: 4px;
-        overflow-x: auto;
         font-family: var(--font-code);
         font-size: 9.5pt;
         line-height: var(--line-height-code);
         border: 1px solid var(--color-border);
         margin: 1em 0;
         
-        /* Smart breaking for code blocks */
-        page-break-inside: avoid;
-        break-inside: avoid;
-        orphans: 4;
-        widows: 4;
+        /* overflow:visible prevents Chrome from ignoring page-break-inside:avoid */
+        overflow: visible;
+        white-space: pre-wrap;
+        word-break: break-word;
+        
+        /* Atomic page breaking */
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        -webkit-column-break-inside: avoid;
+        display: block;
     }
     
-    /* Handle very large code blocks */
     @media print {
         pre {
-            white-space: pre-wrap;
-            word-break: break-word;
-            max-height: 85vh; /* Prevent single block from consuming entire page */
-        }
-        
-        /* Allow breaking only for syntax-highlighted long blocks */
-        pre:has(code[class*="language-"]) {
-            page-break-inside: auto;
+            /* If the block is somehow forced to break, this forces the grey background to smoothly wrap both fragments instead of leaving massive ugly gaps! */
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
         }
     }
 
@@ -205,16 +150,12 @@ const INLINE_STYLES = `
     ul, ol {
         padding-left: 2em;
         margin: 0.75em 0;
-        
-        /* Keep lists together and glued to intro text */
-        page-break-inside: avoid;
-        break-inside: avoid;
-        page-break-before: avoid;
-        break-before: avoid;
+        /* Let container break naturally */
     }
 
     li {
         margin-bottom: 0.3em;
+        /* Prevent single list items from fracturing vertically */
         page-break-inside: avoid;
         break-inside: avoid;
     }
@@ -231,9 +172,7 @@ const INLINE_STYLES = `
         width: 100%;
         margin: 1.5em 0;
         font-size: 10pt;
-        
-        /* Better table handling */
-        page-break-inside: avoid;
+        /* Let table break naturally */
         orphans: 2;
         widows: 2;
     }
@@ -245,6 +184,12 @@ const INLINE_STYLES = `
     
     tbody {
         display: table-row-group;
+    }
+    
+    /* Prevent table rows from slicing horizontally in the middle of text */
+    tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
     }
     
     th, td {
@@ -333,6 +278,115 @@ const INLINE_STYLES = `
         }
     }
 
+    /* CUSTOM EXTENSIONS */
+    .cover-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 80vh;
+        text-align: center;
+        page-break-after: always;
+    }
+    .cover-page h1 { border: none; font-size: 3em; margin-bottom: 0.5em; }
+    .cover-page .meta { font-size: 1.2em; color: var(--color-text-light); }
+    
+    .toc-page {
+        page-break-after: always;
+    }
+    #toc {
+        list-style: none;
+        padding: 0;
+    }
+    #toc li {
+        margin-bottom: 0.5em;
+        line-height: 1.4;
+    }
+    #toc a {
+        color: #0366d6;
+        text-decoration: none;
+        font-size: 1.1em;
+    }
+    #toc a:hover {
+        text-decoration: underline;
+    }
+
+    .watermark {
+        position: fixed;
+        top: 30%;
+        left: 50%;
+        transform: translate(-50%, -30%);
+        opacity: 0.05;
+        max-width: 60%;
+        z-index: -10;
+        pointer-events: none;
+    }
+
+    .alert {
+        border-left: 4px solid;
+        padding: 1em 1.5em;
+        margin: 1.5em 0;
+        border-radius: 4px;
+        background-color: #f8f9fa;
+        page-break-inside: avoid;
+    }
+    .alert p { margin: 0; }
+    .alert p + p { margin-top: 0.5em; }
+    .alert-title {
+        display: flex;
+        align-items: center;
+        font-weight: 600;
+        margin-bottom: 0.5em;
+        font-family: var(--font-headings);
+    }
+    .alert-title svg { width: 1.2em; height: 1.2em; min-width: 1.2em; min-height: 1.2em; margin-right: 0.5em; fill: currentColor; flex-shrink: 0; }
+    .alert.NOTE { border-color: #0969da; background-color: #f6f8fa; color: #24292f; }
+    .alert.NOTE .alert-title { color: #0969da; }
+    .alert.IMPORTANT { border-color: #8250df; background-color: #f3f0ff; color: #24292f; }
+    .alert.IMPORTANT .alert-title { color: #8250df; }
+    .alert.WARNING { border-color: #9a6700; background-color: #fff8c5; color: #24292f; }
+    .alert.WARNING .alert-title { color: #9a6700; }
+    .alert.TIP { border-color: #1a7f37; background-color: #dcffe4; color: #24292f; }
+    .alert.TIP .alert-title { color: #1a7f37; }
+    .alert.CAUTION { border-color: #d1242f; background-color: #ffebe9; color: #24292f; }
+    .alert.CAUTION .alert-title { color: #d1242f; }
+
+    .markdown-body input[type="checkbox"] {
+        appearance: none;
+        width: 1.2em;
+        height: 1.2em;
+        border: 2px solid var(--color-border);
+        border-radius: 3px;
+        margin-right: 0.5em;
+        vertical-align: middle;
+        position: relative;
+        top: -2px;
+    }
+    .markdown-body input[type="checkbox"]:checked {
+        background-color: #0969da;
+        border-color: #0969da;
+    }
+    .markdown-body input[type="checkbox"]:checked::after {
+        content: '';
+        position: absolute;
+        width: 4px;
+        height: 8px;
+        border: solid white;
+        border-width: 0 2px 2px 0;
+        transform: rotate(45deg);
+        left: 4px;
+        top: 1px;
+    }
+
+    .code-wrapper {
+        page-break-inside: avoid;
+        break-inside: avoid;
+        display: inline-block;
+        width: 100%;
+        margin: 1em 0;
+        vertical-align: top;
+    }
+
     /* UTILITY CLASSES */
     .page-break {
         page-break-after: always;
@@ -345,7 +399,7 @@ const INLINE_STYLES = `
     }
 `;
 
-// --- NESTED PDF BOOKMARKS ---
+// Nested PDF Bookmarks
 async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
     const pdfDoc = await PDFDocument.load(pdfBuffer);
     const pages = pdfDoc.getPages();
@@ -367,7 +421,7 @@ async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
         const item = {
             title: bookmark.title,
             level: bookmark.level,
-            pageNum: Math.min(Math.max(0, Math.floor(bookmark.top / 841.89)), pages.length - 1),
+            pageNum: Math.min(Math.max(0, Math.floor(bookmark.top / pageHeight)), pages.length - 1),
             children: [],
             ref: context.nextRef()
         };
@@ -438,15 +492,145 @@ async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
     fs.writeFileSync(outputPath, await pdfDoc.save());
 }
 
-// --- MAIN CONVERSION FUNCTION ---
-async function mdToPdf(inputFile, outputFile, options = {}) {
+// Main Conversion Function
+let browserInstance = null;
+
+export async function getBrowserInstance() {
+    if (!browserInstance) {
+        console.log("Launching browser...");
+        browserInstance = await puppeteer.launch({
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--allow-file-access-from-files'
+            ]
+        });
+        browserInstance.on('disconnected', () => { browserInstance = null; });
+    }
+    return browserInstance;
+}
+
+export async function closeBrowserInstance() {
+    if (browserInstance) {
+        await browserInstance.close();
+        browserInstance = null;
+    }
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export async function mdToPdf(inputFile, outputFile, options = {}) {
     const markdown = fs.readFileSync(inputFile, "utf-8");
-    headings.length = 0; // Reset headings
+    const headings = [];
 
-    const htmlContent = marked.parse(markdown);
-    const documentTitle = options.title || path.basename(inputFile, '.md');
+    // Create local marked instance for this request
+    const markedInstance = new Marked();
+    markedInstance.use(markedKatex(katexOptions));
 
-    // Robust rendering with graceful fallback
+    const renderer = {
+        heading(text, level, raw) {
+            const id = raw.toLowerCase().replace(/[^\w]+/g, '-');
+            headings.push({ level, text: raw, id });
+            return `<h${level} id="${id}" class="section-heading level-${level}">${text}</h${level}>`;
+        },
+        code(code, language) {
+            const lang = language || 'plaintext';
+            const validLang = lang.toLowerCase();
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            };
+            const escapedCode = code.replace(/[&<>"']/g, (char) => map[char]);
+            return `<div class="code-wrapper"><pre style="margin: 0;"><code class="language-${validLang}">${escapedCode}</code></pre></div>`;
+        },
+        blockquote(quote) {
+            const alertMap = {
+                'NOTE': { title: 'Note', class: 'NOTE', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 0 0-2 1 1 0 0 0 0 2Z"/></svg>' },
+                'IMPORTANT': { title: 'Important', class: 'IMPORTANT', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.75.75 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>' },
+                'WARNING': { title: 'Warning', class: 'WARNING', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>' },
+                'TIP': { title: 'Tip', class: 'TIP', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>' },
+                'CAUTION': { title: 'Caution', class: 'CAUTION', icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>' }
+            };
+            const match = quote.match(/^\s*<p>\[!(NOTE|IMPORTANT|WARNING|TIP|CAUTION)\](?:<br>|\n)?([\s\S]*?)<\/p>([\s\S]*)$/i);
+            if (match) {
+                const type = match[1].toUpperCase();
+                const firstParagraphContent = match[2];
+                const restContent = match[3];
+                const alert = alertMap[type];
+                return `<div class="alert ${alert.class}">\n<div class="alert-title">${alert.icon}${alert.title}</div>\n<p>${firstParagraphContent}</p>${restContent}\n</div>`;
+            }
+            return `<blockquote>${quote}</blockquote>`;
+        }
+    };
+
+    markedInstance.use({ renderer });
+
+    const htmlContent = markedInstance.parse(markdown);
+
+    // Resolve relative image paths to absolute file:// URLs
+    const inputDir = path.dirname(path.resolve(inputFile));
+    const resolvedContent = htmlContent.replace(
+        /(<img\s+[^>]*src=["'])(?!https?:\/\/|data:|file:\/\/)([^"']+)(["'])/gi,
+        (match, prefix, src, suffix) => {
+            const srcDecoded = decodeURIComponent(src);
+            const basename = path.basename(srcDecoded);
+
+            if (options.imageMap && options.imageMap[basename]) {
+                const imagePath = path.resolve(options.imageMap[basename]);
+                const fileUrl = `file:///${imagePath.replace(/\\/g, '/')}`;
+                return `${prefix}${fileUrl}${suffix}`;
+            }
+
+            const absPath = path.resolve(inputDir, srcDecoded);
+            const fileUrl = `file:///${absPath.replace(/\\/g, '/')}`;
+            return `${prefix}${fileUrl}${suffix}`;
+        }
+    );
+    const documentTitle = escapeHtml(options.title || path.basename(inputFile, '.md'));
+    const author = escapeHtml(options.author || process.env.PDF_AUTHOR || '');
+    const date = options.date || new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+
+    // Detect if the user's markdown already contains a Table of Contents
+    const userHasToc = /^#{1,3}\s+table\s+of\s+contents/im.test(markdown);
+
+    // Generate Cover Page HTML
+    const coverPage = options.coverPage !== false ? `
+        <div class="cover-page">
+            <h1>${documentTitle}</h1>
+            <div class="meta">
+                ${author ? `<p><strong>Author:</strong> ${author}</p>` : ''}
+                <p><strong>Date:</strong> ${date}</p>
+            </div>
+        </div>
+    ` : '';
+
+    // Generate TOC HTML only if user hasn't written their own
+    const tocPage = options.toc !== false && headings.length > 0 && !userHasToc ? `
+        <div class="toc-page">
+            <h1 style="border-bottom: 2px solid var(--color-border); padding-bottom: 0.5em;">Table of Contents</h1>
+            <ul id="toc">
+                ${headings.map((h) => `
+                    <li style="margin-left: ${(h.level - 1) * 1.5}em">
+                        <a href="#${h.id}">
+                            ${h.text}
+                        </a>
+                    </li>
+                `).join('')}
+            </ul>
+        </div>
+    ` : '';
+
+    // Watermark HTML
+    const watermarkHtml = options.watermark ? `<img class="watermark" src="${options.watermark}" alt="Watermark">` : '';
+
+    // Rendering with fallback
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -460,8 +644,11 @@ async function mdToPdf(inputFile, outputFile, options = {}) {
     <style>${INLINE_STYLES}</style>
 </head>
 <body>
+    ${watermarkHtml}
+    ${coverPage}
+    ${tocPage}
     <article class="markdown-body">
-        ${htmlContent}
+        ${resolvedContent}
     </article>
     
     <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
@@ -470,11 +657,11 @@ async function mdToPdf(inputFile, outputFile, options = {}) {
     <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
 
     <script>
-        // Robust rendering with timeout fallback
+        // Rendering with timeout fallback
         window.status = 'loading';
         
         document.addEventListener('DOMContentLoaded', function() {
-            // Safety timeout - proceed even if rendering fails
+            // Render timeout fallback
             const renderTimeout = setTimeout(() => {
                 console.warn('Render timeout reached - proceeding with PDF generation');
                 window.status = 'ready';
@@ -536,60 +723,86 @@ async function mdToPdf(inputFile, outputFile, options = {}) {
 </body>
 </html>`;
 
-    console.log("Launching browser...");
-    const browser = await puppeteer.launch({
-        headless: "new",
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
-    });
-    const page = await browser.newPage();
+    const browser = await getBrowserInstance();
+    const context = await browser.createBrowserContext();
+    let pdfBuffer;
+    let bookmarkData = [];
+    const htmlPath = inputFile.replace(/\.(md|markdown)$/i, '.html');
+    try {
+        const page = await context.newPage();
 
-    // Set content and wait for network idle
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+        // Puppeteer block file:// images on about:blank pages, so we must save the HTML
+        // to a temporary file and navigate directly to it to establish a valid file:// origin.
+        fs.writeFileSync(htmlPath, html, 'utf8');
+        const fileUrl = `file:///${path.resolve(htmlPath).replace(/\\/g, '/')}`;
+        
+        await page.goto(fileUrl, { waitUntil: 'networkidle0' });
 
-    console.log("Waiting for rendering (Math + Syntax highlighting)...");
-    await page.waitForFunction("window.status === 'ready'", { timeout: 60000 });
+        console.log("Waiting for rendering (Math + Syntax highlighting)...");
+        await page.waitForFunction("window.status === 'ready'", { timeout: 60000 });
 
-    console.log("Calculating bookmarks...");
-    const bookmarkData = [];
-    for (const heading of headings) {
-        const position = await page.evaluate((id) => {
-            const element = document.getElementById(id);
-            if (!element) return null;
-            const rect = element.getBoundingClientRect();
-            return { top: rect.top + window.scrollY };
-        }, heading.id);
+        console.log("Calculating bookmarks...");
+        for (const heading of headings) {
+            const position = await page.evaluate((id) => {
+                const element = document.getElementById(id);
+                if (!element) return null;
+                const rect = element.getBoundingClientRect();
+                return { top: rect.top + window.scrollY };
+            }, heading.id);
 
-        if (position) {
-            bookmarkData.push({
-                title: heading.text,
-                level: heading.level,
-                top: position.top
-            });
+            if (position) {
+                bookmarkData.push({
+                    title: heading.text,
+                    level: heading.level,
+                    top: position.top
+                });
+            }
         }
-    }
 
-    console.log("Generating PDF...");
-    const pdfBuffer = await page.pdf({
-        format: "A4",
-        printBackground: true,
-        displayHeaderFooter: true,
-        footerTemplate: `
-            <div style="font-size: 9pt; font-family: -apple-system, sans-serif; color: #666; margin: 0 2cm; width: 100%; text-align: center; border-top: 1px solid #ddd; padding-top: 8px;">
+        // Smart page-break pass: measure elements and protect small ones from splitting
+        console.log("Optimizing page breaks...");
+        await page.evaluate(() => {
+            // A4 = 11.69in, minus 0.5in top + 0.8in bottom = 10.39in usable at 96dpi
+            const pageHeight = 10.39 * 96; // ~998px
+            const breakable = document.querySelectorAll('ul, ol, table, blockquote, .code-wrapper');
+            breakable.forEach(el => {
+                const height = el.getBoundingClientRect().height;
+                if (height < pageHeight) {
+                    // Small enough to keep together — prevent splitting
+                    el.style.pageBreakInside = 'avoid';
+                    el.style.breakInside = 'avoid';
+                } else {
+                    // Too large for one page — allow natural breaking
+                    el.style.pageBreakInside = 'auto';
+                    el.style.breakInside = 'auto';
+                }
+            });
+        });
+
+        console.log("Generating PDF...");
+        pdfBuffer = await page.pdf({
+            format: "A4",
+            printBackground: true,
+            displayHeaderFooter: true,
+            footerTemplate: `
+            <div style="font-size: 9pt; font-family: -apple-system, sans-serif; color: #666; margin: 0 0.5in; width: 100%; text-align: center; border-top: 1px solid #ddd; padding-top: 8px;">
                 <span style="font-weight: 500;">${documentTitle}</span>
                 <span style="margin: 0 1em;">•</span>
                 Page <span class="pageNumber"></span> of <span class="totalPages"></span>
             </div>
         `,
-        headerTemplate: '<div></div>',
-        margin: {
-            top: "2cm",
-            bottom: "2.5cm",
-            left: "2cm",
-            right: "2cm"
-        }
-    });
-
-    await browser.close();
+            headerTemplate: '<div></div>',
+            margin: {
+                top: "0.5in",
+                bottom: "0.8in",
+                left: "0.5in",
+                right: "0.5in"
+            }
+        });
+    } finally {
+        await context.close();
+        if (fs.existsSync(htmlPath)) fs.unlinkSync(htmlPath);
+    }
 
     // Add PDF metadata
     console.log("Setting PDF metadata...");
@@ -628,29 +841,31 @@ async function mdToPdf(inputFile, outputFile, options = {}) {
     }
 }
 
-// --- CLI PARSER ---
-const args = process.argv.slice(2);
-const flags = {
-    input: null,
-    output: null,
-    title: null,
-    author: null,
-    subject: null,
-    keywords: null
-};
+// CLI Parser
+const isCLI = process.argv[1] === fileURLToPath(import.meta.url);
+if (isCLI) {
+    const args = process.argv.slice(2);
+    const flags = {
+        input: null,
+        output: null,
+        title: null,
+        author: null,
+        subject: null,
+        keywords: null
+    };
 
-// Parse flags
-for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    if (arg.startsWith('--')) {
-        const key = arg.slice(2);
-        const value = args[i + 1];
+    // Parse flags
+    for (let i = 0; i < args.length; i++) {
+        const arg = args[i];
+        if (arg.startsWith('--')) {
+            const key = arg.slice(2);
+            const value = args[i + 1];
 
-        if (key === 'author' && value) { flags.author = value; i++; }
-        else if (key === 'subject' && value) { flags.subject = value; i++; }
-        else if (key === 'keywords' && value) { flags.keywords = value.split(',').map(k => k.trim()); i++; }
-        else if (key === 'help' || key === 'h') {
-            console.log(`
+            if (key === 'author' && value) { flags.author = value; i++; }
+            else if (key === 'subject' && value) { flags.subject = value; i++; }
+            else if (key === 'keywords' && value) { flags.keywords = value.split(',').map(k => k.trim()); i++; }
+            else if (key === 'help' || key === 'h') {
+                console.log(`
 Professional Markdown to PDF Converter
 
 USAGE:
@@ -687,30 +902,33 @@ FEATURES:
   ✓ PDF metadata (author, subject, keywords)
   ✓ Graceful CDN fallback
 `);
-            process.exit(0);
+                process.exit(0);
+            }
+        } else {
+            if (!flags.input) flags.input = arg;
+            else if (!flags.output) flags.output = arg;
+            else if (!flags.title) flags.title = arg;
         }
-    } else {
-        if (!flags.input) flags.input = arg;
-        else if (!flags.output) flags.output = arg;
-        else if (!flags.title) flags.title = arg;
     }
+
+    if (!flags.input) {
+        console.error("Error: No input file specified");
+        console.error("Usage: node script.js <input.md> [output.pdf] [options]");
+        console.error("Run 'node script.js --help' for more information");
+        process.exit(1);
+    }
+
+    if (!fs.existsSync(flags.input)) {
+        console.error(`Error: Input file not found: ${flags.input}`);
+        process.exit(1);
+    }
+
+    const finalOutputFile = flags.output || `${path.basename(flags.input, '.md')}.pdf`;
+
+    mdToPdf(flags.input, finalOutputFile, flags).then(() => {
+        closeBrowserInstance().then(() => process.exit(0));
+    }).catch(error => {
+        console.error("Fatal Error:", error);
+        process.exit(1);
+    });
 }
-
-if (!flags.input) {
-    console.error("Error: No input file specified");
-    console.error("Usage: node script.js <input.md> [output.pdf] [options]");
-    console.error("Run 'node script.js --help' for more information");
-    process.exit(1);
-}
-
-if (!fs.existsSync(flags.input)) {
-    console.error(`Error: Input file not found: ${flags.input}`);
-    process.exit(1);
-}
-
-const finalOutputFile = flags.output || `${path.basename(flags.input, '.md')}.pdf`;
-
-mdToPdf(flags.input, finalOutputFile, flags).catch(error => {
-    console.error("Fatal Error:", error);
-    process.exit(1);
-});

@@ -10,7 +10,6 @@ class App {
         this.files = new FileHandler();
         this.converter = new ConverterService();
         this.selectedFiles = [];
-        this.progressInterval = null;
     }
 
     init() {
@@ -80,13 +79,18 @@ class App {
         this.ui.showFileInfo(this.selectedFiles.map((file, index) => ({
             name: file.name,
             size: this.files.formatSize(file.size),
-            index
+            index,
+            icon: this.files.getFileIcon(file)
         })));
 
-        if (this.selectedFiles.length > 0) {
+        if (this.hasMarkdownFiles()) {
             this.ui.enableConvertBtn();
             this.ui.hideStatus();
         }
+    }
+
+    hasMarkdownFiles() {
+        return this.selectedFiles.some(f => this.files.isMarkdown(f));
     }
 
     handleRemoveFile(index) {
@@ -97,9 +101,15 @@ class App {
             this.ui.showFileInfo(this.selectedFiles.map((file, index) => ({
                 name: file.name,
                 size: this.files.formatSize(file.size),
-                index
+                index,
+                icon: this.files.getFileIcon(file)
             })));
-            this.ui.enableConvertBtn();
+            if (this.hasMarkdownFiles()) {
+                this.ui.enableConvertBtn();
+            } else {
+                this.ui.showStatus("At least one Markdown file is required", "error");
+                this.ui.disableConvertBtn();
+            }
         } else {
             // No files left, reset everything
             this.ui.hideFileInfo();
@@ -112,11 +122,14 @@ class App {
     async handleConvert() {
         if (this.selectedFiles.length === 0) return this.ui.showStatus("No files selected", "error");
 
+        const markdownFile = this.selectedFiles.find(f => this.files.isMarkdown(f));
+        if (!markdownFile) return this.ui.showStatus("At least one Markdown file is required", "error");
+
         // Determine output name based on file count
         let outputName;
-        if (this.selectedFiles.length === 1) {
-            // Single file: use .pdf extension
-            const baseName = this.selectedFiles[0].name.replace(/\.(md|markdown)$/i, '');
+        if (this.selectedFiles.filter(f => this.files.isMarkdown(f)).length === 1) {
+            // Single markdown file: use .pdf extension
+            const baseName = markdownFile.name.replace(/\.(md|markdown)$/i, '');
             outputName = this.ui.DOM.outputName.value.trim() || `${baseName}.pdf`;
             // Ensure .pdf extension for single files
             if (!outputName.endsWith('.pdf')) {
@@ -132,13 +145,10 @@ class App {
         }
 
         this.ui.setProcessingState();
-        this.ui.showProgress();
-        this.simulateProgress();
         this.ui.hideStatus();
 
         try {
             const blob = await this.converter.convert(this.selectedFiles, outputName);
-            this.completeProgress();
             this.converter.download(blob, outputName);
             this.ui.showStatus("Conversion completed!", "success");
 
@@ -150,33 +160,12 @@ class App {
         } catch (err) {
             this.ui.showStatus(`Conversion failed: ${err.message}`, "error");
             this.ui.resetConvertBtn();
-        } finally {
-            setTimeout(() => this.ui.hideProgress(), 2000);
         }
-    }
-
-    simulateProgress() {
-        let progress = 0;
-        this.progressInterval = setInterval(() => {
-            progress += Math.random() * (20 - 5) + 5;
-            if (progress > 80) { progress = 80; this.stopProgress(); }
-            this.ui.updateProgress(progress);
-        }, 500);
-    }
-    stopProgress() {
-        clearInterval(this.progressInterval);
-        this.progressInterval = null;
-    }
-    completeProgress() {
-        this.stopProgress();
-        this.ui.updateProgress(100);
     }
 
     reset() {
         this.selectedFiles = [];
-        this.stopProgress();
         this.ui.hideFileInfo();
-        this.ui.hideProgress();
         this.ui.hideStatus();
         this.ui.resetConvertBtn();
         this.ui.DOM.fileInput.value = "";

@@ -1,14 +1,22 @@
 "use strict";
 
 export class FileHandler {
-    static VALID_EXTENSIONS = /\.(md|markdown)$/i;
-    static MAX_MB = 50;
+    static VALID_EXTENSIONS = /\.(md|markdown|png|jpg|jpeg|gif|svg|webp)$/i;
+    static MARKDOWN_EXTENSIONS = /\.(md|markdown)$/i;
+    static IMAGE_EXTENSIONS = /\.(png|jpg|jpeg|gif|svg|webp)$/i;
+    static MAX_MB = 10;
 
     isValid(file) {
         return this.isValidExtension(file) && this.isValidSize(file);
     }
     isValidExtension(file) {
         return file && file.name && FileHandler.VALID_EXTENSIONS.test(file.name);
+    }
+    isMarkdown(file) {
+        return file && file.name && FileHandler.MARKDOWN_EXTENSIONS.test(file.name);
+    }
+    isImage(file) {
+        return file && file.name && FileHandler.IMAGE_EXTENSIONS.test(file.name);
     }
     isValidSize(file) {
         return file.size <= FileHandler.MAX_MB * 1024 * 1024;
@@ -21,5 +29,10 @@ export class FileHandler {
     defaultOutputName(name) {
         const base = name.replace(FileHandler.VALID_EXTENSIONS, "");
         return `${base}.pdf`;
+    }
+    getFileIcon(file) {
+        if (FileHandler.MARKDOWN_EXTENSIONS.test(file.name)) return 'MD';
+        if (FileHandler.IMAGE_EXTENSIONS.test(file.name)) return 'IMG';
+        return 'FILE';
     }
 }

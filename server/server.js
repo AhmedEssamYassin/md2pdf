@@ -6,20 +6,23 @@ import fs from 'fs';
 import archiver from 'archiver';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
-import { spawn } from 'child_process';
+import { mdToPdf, closeBrowserInstance } from './md2pdf-converter.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Configuration
+const MARKDOWN_EXTS = ['.md', '.markdown'];
+const IMAGE_EXTS = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
+
 const CONFIG = {
     PORT: process.env.PORT || 3000,
     MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
     UPLOAD_DIR: 'uploads',
     OUTPUT_DIR: 'outputs',
-    CLIENT_DIR: process.env.NODE_ENV === 'production' ? 'dist' : '../client',
-    ALLOWED_EXTENSIONS: ['.md', '.markdown'],
-    ALLOWED_MIMETYPES: ['text/markdown', 'text/x-markdown', 'text/plain']
+    CLIENT_DIR: process.env.NODE_ENV === 'production' ? '../client/dist' : '../client',
+    ALLOWED_EXTENSIONS: [...MARKDOWN_EXTS, ...IMAGE_EXTS],
+    ALLOWED_MIMETYPES: ['text/markdown', 'text/x-markdown', 'text/plain', 'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp']
 };
 
 const app = express();
@@ -58,7 +61,7 @@ const fileFilter = (req, file, cb) => {
     if (isValidExt || isValidMime) {
         cb(null, true);
     } else {
-        cb(new Error('Only Markdown files (.md, .markdown) are allowed!'), false);
+        cb(new Error('Only Markdown files (.md, .markdown) and image files (.png, .jpg, .jpeg, .gif, .svg, .webp) are allowed!'), false);
     }
 };
 
@@ -72,10 +75,14 @@ const upload = multer({
 app.use(express.static(CONFIG.CLIENT_DIR));
 
 // API Routes
-app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
+app.post('/api/convert', upload.array('files', 50), async (req, res) => {
     let inputFiles = [];
+    let imageFiles = [];
     let outputFiles = [];
     let zipFile;
+
+    const markdownExts = ['.md', '.markdown'];
+    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
 
     try {
         if (!req.files || req.files.length === 0) {
@@ -85,8 +92,25 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
             });
         }
 
+        const markdownFiles = req.files.filter(f => MARKDOWN_EXTS.includes(path.extname(f.originalname).toLowerCase()));
+        const uploadedImageFiles = req.files.filter(f => IMAGE_EXTS.includes(path.extname(f.originalname).toLowerCase()));
+
+        if (markdownFiles.length === 0) {
+            return res.status(400).json({
+                error: 'No markdown files were uploaded',
+                code: 'NO_FILE'
+            });
+        }
+
+        const imageMap = {};
+        uploadedImageFiles.forEach(img => {
+            const basename = path.basename(img.originalname);
+            imageMap[basename] = img.path;
+        });
+        imageFiles = uploadedImageFiles.map(f => f.path);
+
         // Convert all files to PDF
-        for (const file of req.files) {
+        for (const file of markdownFiles) {
             const inputFile = file.path;
             const originalName = path.parse(file.originalname).name;
             let outputName = `${originalName}.pdf`;
@@ -96,7 +120,7 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
             const outputFile = path.join(CONFIG.OUTPUT_DIR, `${Date.now()}-${outputName}`);
 
             console.log(`Converting: ${file.originalname} -> ${outputName}`);
-            await runMdToPdf(inputFile, outputFile, originalName);
+            await runMdToPdf(inputFile, outputFile, originalName, req.body, imageMap);
 
             if (!fs.existsSync(outputFile)) {
                 throw new Error(`PDF generation failed for ${file.originalname}`);
@@ -109,7 +133,7 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
         // If only one file, send it directly without zipping
         if (outputFiles.length === 1) {
             const singleFile = outputFiles[0];
-            const outputName = req.body.outputName || singleFile.name;
+            const outputName = sanitizeFilename(req.body.outputName || singleFile.name);
 
             res.setHeader('Content-Type', 'application/pdf');
             res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
@@ -120,14 +144,14 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
 
             fileStream.on('error', (err) => {
                 console.error('Error streaming file:', err);
-                cleanupFiles([...inputFiles, singleFile.path]);
+                cleanupFiles([...inputFiles, ...imageFiles, singleFile.path]);
                 if (!res.headersSent) {
                     res.status(500).json({ error: 'Failed to send file' });
                 }
             });
 
             res.on('close', () => {
-                cleanupFiles([...inputFiles, singleFile.path]);
+                cleanupFiles([...inputFiles, ...imageFiles, singleFile.path]);
             });
 
             return; // Exit early for single file
@@ -141,7 +165,15 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
         const output = fs.createWriteStream(zipFile);
         const archive = archiver('zip', { zlib: { level: 9 } });
 
-        archive.on('error', (err) => { throw err; });
+        archive.on('error', (err) => {
+            console.error('Zip Error:', err);
+            const uploadedFiles = req.files ? req.files.map(f => f.path) : [];
+            cleanupFiles([...uploadedFiles, ...imageFiles, ...outputFiles.map(f => f.path), zipFile]);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Zip creation failed' });
+            }
+            res.end();
+        });
         archive.pipe(output);
 
         output.on('close', () => {
@@ -156,11 +188,11 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
 
             fileStream.on('error', (err) => {
                 console.error('Error streaming zip:', err);
-                cleanupFiles([...inputFiles, ...outputFiles.map(f => f.path), zipFile]);
+                cleanupFiles([...inputFiles, ...imageFiles, ...outputFiles.map(f => f.path), zipFile]);
             });
 
             res.on('close', () => {
-                cleanupFiles([...inputFiles, ...outputFiles.map(f => f.path), zipFile]);
+                cleanupFiles([...inputFiles, ...imageFiles, ...outputFiles.map(f => f.path), zipFile]);
             });
         });
 
@@ -175,7 +207,8 @@ app.post('/api/convert', upload.array('markdowns'), async (req, res) => {
         console.error('Conversion error:', error);
 
         // Clean up files if conversion failed
-        cleanupFiles([...inputFiles, ...outputFiles.map(f => f.path), zipFile]);
+        const uploadedFiles = req.files ? req.files.map(f => f.path) : [];
+        cleanupFiles([...uploadedFiles, ...imageFiles, ...outputFiles.map(f => f.path), zipFile]);
 
         if (!res.headersSent) {
             res.status(500).json({
@@ -218,16 +251,16 @@ app.use((error, req, res, next) => {
         if (error.code === 'LIMIT_UNEXPECTED_FILE') {
             return res.status(400).json({
                 error: 'Invalid file upload',
-                details: 'Only single file uploads are allowed',
+                details: 'Unexpected upload field name. Use "files" as the field name.',
                 code: 'INVALID_UPLOAD'
             });
         }
     }
 
-    if (error.message === 'Only Markdown files (.md, .markdown) are allowed!') {
+    if (error.message.includes('Markdown files (.md, .markdown) and image files')) {
         return res.status(400).json({
             error: 'Invalid file type',
-            details: 'Only .md and .markdown files are supported',
+            details: 'Only .md, .markdown and image files (.png, .jpg, .jpeg, .gif, .svg, .webp) are supported',
             code: 'INVALID_FILE_TYPE'
         });
     }
@@ -242,38 +275,19 @@ app.use((error, req, res, next) => {
 });
 
 // Utility Functions
-function runMdToPdf(inputFile, outputFile, title) {
-    return new Promise((resolve, reject) => {
-        const child = spawn('node', ['md2pdf-converter.js', inputFile, outputFile, title], {
-            cwd: __dirname,
-            timeout: 60000 // 60 seconds (1 min) timeout
+async function runMdToPdf(inputFile, outputFile, title, requestBody = {}, imageMap = {}) {
+    try {
+        await mdToPdf(inputFile, outputFile, {
+            title: title,
+            author: requestBody.author || undefined,
+            coverPage: requestBody.coverPage !== 'false',
+            toc: requestBody.toc !== 'false',
+            watermark: requestBody.watermark || undefined,
+            imageMap: imageMap
         });
-
-        let stdout = '';
-        let stderr = '';
-
-        child.stdout.on('data', (data) => {
-            stdout += data.toString();
-            console.log('md-to-pdf:', data.toString().trim());
-        });
-
-        child.stderr.on('data', (data) => {
-            stderr += data.toString();
-            console.error('md-to-pdf error:', data.toString().trim());
-        });
-
-        child.on('close', (code) => {
-            if (code === 0) {
-                resolve({ stdout, stderr });
-            } else {
-                reject(new Error(`md-to-pdf process exited with code ${code}. Stderr: ${stderr}`));
-            }
-        });
-
-        child.on('error', (error) => {
-            reject(new Error(`Failed to start md-to-pdf process: ${error.message}`));
-        });
-    });
+    } catch (error) {
+        throw new Error(`md-to-pdf process failed: ${error.message}`);
+    }
 }
 
 function sanitizeFilename(filename) {
@@ -307,13 +321,6 @@ function ensureDirectories() {
 }
 
 function validateEnvironment() {
-    // Check if md2pdf-converter.js exists
-    if (!fs.existsSync('md2pdf-converter.js')) {
-        console.warn('Warning: md2pdf-converter.js not found in current directory');
-        console.warn('Make sure the file exists for conversions to work');
-    }
-
-    // Check Node.js version
     const nodeVersion = process.version;
     console.log(`Node.js version: ${nodeVersion}`);
 }
@@ -342,7 +349,12 @@ function startServer() {
 function gracefulShutdown(server) {
     console.log('\nShutting down server...');
 
-    server.close(() => {
+    server.close(async () => {
+        try {
+            await closeBrowserInstance();
+        } catch (e) {
+            console.error('Error closing browser:', e);
+        }
         console.log('Server closed');
 
         // Clean up temporary files

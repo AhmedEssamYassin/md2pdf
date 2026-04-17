@@ -13,8 +13,6 @@ export class UIController {
             removeFileBtn: document.getElementById('removeFileBtn'),
             convertText: document.getElementById('convertText'),
             spinner: document.getElementById('spinner'),
-            progressBar: document.getElementById('progressBar'),
-            progressFill: document.getElementById('progressFill'),
             statusMessage: document.getElementById('statusMessage')
         };
 
@@ -24,7 +22,7 @@ export class UIController {
     validateDOM() {
         const required = [
             "dropZone", "fileInput", "fileInfo", "outputName", "convertBtn",
-            "convertText", "progressBar", "progressFill", "statusMessage"
+            "convertText", "statusMessage"
         ];
         const missing = required.filter(k => !this.DOM[k]);
         if (missing.length > 0) throw new Error(`Missing DOM: ${missing.join(", ")}`);
@@ -39,7 +37,7 @@ export class UIController {
 
         this.DOM.fileList.innerHTML = files.map(file => `
         <div class="flex items-center gap-3 relative mb-3 last:mb-0">
-            <div class="w-10 h-10 bg-slate-700 border border-blue-500 rounded flex items-center justify-center text-blue-500 font-semibold text-xs">MD</div>
+            <div class="w-10 h-10 bg-slate-700 border border-blue-500 rounded flex items-center justify-center text-blue-500 font-semibold text-xs">${file.icon}</div>
             <div class="flex-1">
                 <div class="font-semibold text-slate-50 mb-1 text-sm">${file.name}</div>
                 <div class="text-slate-400 text-xs">${file.size}</div>
@@ -58,17 +56,6 @@ export class UIController {
 
     hideFileInfo() {
         this.DOM.fileInfo.classList.add('hidden');
-    }
-
-    animateFileSelection() {
-        // Add a subtle animation when file is selected
-        this.DOM.fileInfo.style.transform = 'scale(0.95)';
-        this.DOM.fileInfo.style.opacity = '0';
-
-        setTimeout(() => {
-            this.DOM.fileInfo.style.transform = 'scale(1)';
-            this.DOM.fileInfo.style.opacity = '1';
-        }, 100);
     }
 
     enableConvertBtn() {
@@ -92,22 +79,6 @@ export class UIController {
         this.DOM.convertBtn.classList.remove("processing");
         this.DOM.spinner?.classList.add("hidden");
         this.DOM.convertText.textContent = "Convert to PDF";
-    }
-
-    // Progress
-    showProgress() {
-        this.DOM.progressBar.classList.remove('hidden');
-        this.updateProgress(0);
-    }
-
-    hideProgress() {
-        this.DOM.progressBar.classList.add('hidden');
-        this.updateProgress(0);
-    }
-
-    updateProgress(p) {
-        this.DOM.progressFill.style.width = `${Math.min(p, 100)}%`;
-        this.DOM.progressFill.style.transition = 'width 0.3s ease';
     }
 
     // Status
