@@ -14,7 +14,7 @@ class App {
 
     init() {
         const { DOM } = this.ui;
-
+        this.ui.disableConvertBtn();
         // File selection events
         DOM.dropZone.addEventListener("click", () => DOM.fileInput.click());
         DOM.dropZone.addEventListener("dragover", e => this.handleDrag(e, true));
@@ -112,10 +112,7 @@ class App {
             }
         } else {
             // No files left, reset everything
-            this.ui.hideFileInfo();
-            this.ui.resetConvertBtn();
-            this.ui.DOM.fileInput.value = ""; // Reset file input
-            this.ui.DOM.outputName.value = ""; // Reset output name
+            this.reset();
         }
     }
 
@@ -160,6 +157,9 @@ class App {
         } catch (err) {
             this.ui.showStatus(`Conversion failed: ${err.message}`, "error");
             this.ui.resetConvertBtn();
+            if (this.hasMarkdownFiles()) {
+                this.ui.enableConvertBtn();
+            }
         }
     }
 
@@ -168,6 +168,7 @@ class App {
         this.ui.hideFileInfo();
         this.ui.hideStatus();
         this.ui.resetConvertBtn();
+        this.ui.disableConvertBtn();
         this.ui.DOM.fileInput.value = "";
         this.ui.DOM.outputName.value = "";
     }

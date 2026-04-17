@@ -75,7 +75,6 @@ export class UIController {
     }
 
     resetConvertBtn() {
-        this.enableConvertBtn();
         this.DOM.convertBtn.classList.remove("processing");
         this.DOM.spinner?.classList.add("hidden");
         this.DOM.convertText.textContent = "Convert to PDF";
