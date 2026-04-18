@@ -20,7 +20,7 @@ const CONFIG = {
     MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
     UPLOAD_DIR: 'uploads',
     OUTPUT_DIR: 'outputs',
-    CLIENT_DIR: process.env.NODE_ENV === 'production' ? '../client/dist' : '../client',
+    CLIENT_DIR: path.join(__dirname, process.env.NODE_ENV === 'production' ? '../client/dist' : '../client'),
     ALLOWED_EXTENSIONS: [...MARKDOWN_EXTS, ...IMAGE_EXTS],
     ALLOWED_MIMETYPES: ['text/markdown', 'text/x-markdown', 'text/plain', 'image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp']
 };
@@ -233,7 +233,7 @@ app.get('/api/health', (req, res) => {
 
 // Serve index.html for SPA routing
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, CONFIG.CLIENT_DIR, 'index.html'));
+    res.sendFile(path.join(CONFIG.CLIENT_DIR, 'index.html'));
 });
 
 // Error handling middleware
