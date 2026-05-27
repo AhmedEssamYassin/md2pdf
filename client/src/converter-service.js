@@ -9,7 +9,14 @@ export class ConverterService {
         formData.append("outputName", outputName);
 
         const res = await fetch("/api/convert", { method: "POST", body: formData });
-        if (!res.ok) throw new Error(`Server error: ${res.status}`);
+        if (!res.ok) {
+            let errorMsg = `Server error: ${res.status}`;
+            try {
+                const errorData = await res.json();
+                errorMsg = errorData.details || errorData.error || errorMsg;
+            } catch { /* response wasn't JSON, use default */ }
+            throw new Error(errorMsg);
+        }
         const blob = await res.blob();
 
         // Accept both PDF and ZIP responses

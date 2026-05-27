@@ -129,12 +129,12 @@ node server/md2pdf-converter.js --help
 
 **CLI Options:**
 
-| Flag | Description |
-|------|-------------|
-| `--author "Name"` | Set PDF author metadata |
-| `--subject "Topic"` | Set PDF subject metadata |
+| Flag                 | Description                        |
+| -------------------- | ---------------------------------- |
+| `--author "Name"`    | Set PDF author metadata            |
+| `--subject "Topic"`  | Set PDF subject metadata           |
 | `--keywords "k1,k2"` | Set PDF keywords (comma-separated) |
-| `--help` | Show help message |
+| `--help`             | Show help message                  |
 
 ## API Documentation
 
@@ -146,14 +146,14 @@ Converts uploaded Markdown files to PDF.
 
 **Body:**
 
-| Field | Type | Description |
-|-------|------|-------------|
-| `files` | File(s) | One or more `.md` files, plus optional images (`.png`, `.jpg`, `.svg`, etc.) |
-| `outputName` | String | Optional filename for the output |
-| `author` | String | Optional author for PDF metadata |
-| `coverPage` | String | Set to `"false"` to disable cover page |
-| `toc` | String | Set to `"false"` to disable auto TOC |
-| `watermark` | String | Optional watermark image URL |
+| Field        | Type    | Description                                                                  |
+| ------------ | ------- | ---------------------------------------------------------------------------- |
+| `files`      | File(s) | One or more `.md` files, plus optional images (`.png`, `.jpg`, `.svg`, etc.) |
+| `outputName` | String  | Optional filename for the output                                             |
+| `author`     | String  | Optional author for PDF metadata                                             |
+| `coverPage`  | String  | Set to `"false"` to disable cover page                                       |
+| `toc`        | String  | Set to `"false"` to disable auto TOC                                         |
+| `watermark`  | String  | Optional watermark image URL                                                 |
 
 **Response:**
 
@@ -204,7 +204,7 @@ curl -X POST \
 ```javascript
 const CONFIG = {
     PORT: 3000,
-    MAX_FILE_SIZE: 10 * 1024 * 1024,  // 10MB per file
+    MAX_FILE_SIZE: 10 * 1024 * 1024,  // 10MB per individual file
     UPLOAD_DIR: 'uploads',
     OUTPUT_DIR: 'outputs',
     ALLOWED_EXTENSIONS: [...MARKDOWN_EXTS, ...IMAGE_EXTS],
@@ -213,20 +213,44 @@ const CONFIG = {
 };
 ```
 
+### Production Security Limits
+
+To prevent abuse and protect system resources in production, the server enforces the following limits:
+
+* **Rate Limiting**: Limits each IP address to a maximum of 10 conversion requests per minute using `express-rate-limit`.
+* **Total Upload Limit**: Rejects requests immediately if the total payload size (`Content-Length`) exceeds 50 MB.
+* **Individual File Limit**: Restricts any single file within the multi-upload to a maximum of 10 MB.
+* **Request Timeout**: Limits the execution window of any conversion request to 120 seconds to prevent lingering browser contexts.
+
+
 ### Client (`client/src/file-handler.js`)
 
 ```javascript
 static MAX_MB = 10;  // Per-file size limit (synchronized with server)
 ```
 
+### Updating Offline Libraries
+
+Since the offline rendering assets (KaTeX stylesheet/JS and PrismJS stylesheet/JS) are loaded dynamically from the `node_modules` directory on the server, they can be updated using standard npm package commands from the project root directory:
+
+* **Update within semver ranges**: To fetch the latest minor or patch updates permitted by the configuration in [package.json](file:///d:/GitHub/md2pdf/server/package.json), run:
+  ```bash
+  npm update --prefix server
+  ```
+* **Upgrade to the absolute latest version**: To upgrade a library to its latest major release, run:
+  ```bash
+  npm install package_name@latest --prefix server
+  ```
+  *(Example: `npm install katex@latest --prefix server`)*
+
 ### Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `PORT` | Server port (default: `3000`) |
-| `NODE_ENV` | `production` or `development` |
-| `PDF_AUTHOR` | Default PDF author name |
-| `PDF_SUBJECT` | Default PDF subject |
+| Variable       | Description                            |
+| -------------- | -------------------------------------- |
+| `PORT`         | Server port (default: `3000`)          |
+| `NODE_ENV`     | `production` or `development`          |
+| `PDF_AUTHOR`   | Default PDF author name                |
+| `PDF_SUBJECT`  | Default PDF subject                    |
 | `PDF_KEYWORDS` | Default PDF keywords (comma-separated) |
 
 ## Markdown Features Supported
@@ -293,8 +317,8 @@ NODE_ENV=development npm start
 
 - **Conversion Speed**: ~2-5 seconds per page
 - **Memory Usage**: ~200-300MB (shared Chromium instance)
-- **Concurrency**: Multiple requests isolated via browser contexts
-- **File Size Limit**: 10MB per file (configurable)
+- **Concurrency**: Queue-based semaphore allowing up to 3 concurrent page-rendering tasks, with subsequent requests queued dynamically.
+- **File Size Limit**: 10MB per file (50MB maximum total request size)
 
 ## Contributing
 

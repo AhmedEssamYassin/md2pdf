@@ -3,7 +3,6 @@
 export class UIController {
     constructor() {
         this.DOM = {
-            selectFile: document.getElementById('selectFileButton'),
             dropZone: document.getElementById('dropZone'),
             fileInput: document.getElementById('fileInput'),
             fileInfo: document.getElementById('fileInfo'),

@@ -1,12 +1,13 @@
 import express from 'express';
 import cors from "cors";
 import multer from 'multer';
-import path from 'path';
-import fs from 'fs';
+import path from 'node:path';
+import fs from 'node:fs';
 import archiver from 'archiver';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+import { fileURLToPath } from 'node:url';
+import { dirname } from 'node:path';
 import { mdToPdf, closeBrowserInstance } from './md2pdf-converter.js';
+import { rateLimit } from 'express-rate-limit';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -37,6 +38,7 @@ app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
     res.setHeader('X-Frame-Options', 'DENY');
     res.setHeader('X-XSS-Protection', '1; mode=block');
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: blob:;");
     next();
 });
 
@@ -56,9 +58,9 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
     const isValidExt = CONFIG.ALLOWED_EXTENSIONS.includes(ext);
-    const isValidMime = CONFIG.ALLOWED_MIMETYPES.includes(file.mimetype) || !file.mimetype;
+    const isValidMime = CONFIG.ALLOWED_MIMETYPES.includes(file.mimetype);
 
-    if (isValidExt || isValidMime) {
+    if (isValidExt && isValidMime) {
         cb(null, true);
     } else {
         cb(new Error('Only Markdown files (.md, .markdown) and image files (.png, .jpg, .jpeg, .gif, .svg, .webp) are allowed!'), false);
@@ -74,15 +76,39 @@ const upload = multer({
 // Serve static files from client directory
 app.use(express.static(CONFIG.CLIENT_DIR));
 
+const MAX_TOTAL_UPLOAD = 50 * 1024 * 1024; // 50MB total
+
+const convertLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // Limit each IP to 10 requests per `window` (here, per minute)
+    message: { error: 'Too many requests, please try again later.' },
+    standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+    legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+});
+
 // API Routes
-app.post('/api/convert', upload.array('files', 50), async (req, res) => {
+app.post('/api/convert', convertLimiter, (req, res, next) => {
+    const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+    if (contentLength > MAX_TOTAL_UPLOAD) {
+        return res.status(413).json({
+            error: 'Total upload too large',
+            details: `Maximum total upload size is ${MAX_TOTAL_UPLOAD / (1024 * 1024)}MB`,
+            code: 'TOTAL_TOO_LARGE'
+        });
+    }
+    next();
+}, upload.array('files', 50), async (req, res) => {
+    // Add request timeout
+    req.setTimeout(120000, () => {
+        if (!res.headersSent) {
+            res.status(504).json({ error: 'Request timeout', code: 'TIMEOUT' });
+        }
+    });
+
     let inputFiles = [];
     let imageFiles = [];
     let outputFiles = [];
     let zipFile;
-
-    const markdownExts = ['.md', '.markdown'];
-    const imageExts = ['.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp'];
 
     try {
         if (!req.files || req.files.length === 0) {
@@ -109,14 +135,23 @@ app.post('/api/convert', upload.array('files', 50), async (req, res) => {
         });
         imageFiles = uploadedImageFiles.map(f => f.path);
 
+        const usedNames = new Map();
+        
         // Convert all files to PDF
         for (const file of markdownFiles) {
             const inputFile = file.path;
             const originalName = path.parse(file.originalname).name;
-            let outputName = `${originalName}.pdf`;
+            let baseOutputName = sanitizeFilename(`${originalName}.pdf`);
+            let outputName = baseOutputName;
 
-            // Sanitize filename for security
-            outputName = sanitizeFilename(outputName);
+            const count = usedNames.get(baseOutputName) || 0;
+            if (count > 0) {
+                const ext = path.extname(baseOutputName);
+                const base = path.basename(baseOutputName, ext);
+                outputName = `${base}_${count}${ext}`;
+            }
+            usedNames.set(baseOutputName, count + 1);
+
             const outputFile = path.join(CONFIG.OUTPUT_DIR, `${Date.now()}-${outputName}`);
 
             console.log(`Converting: ${file.originalname} -> ${outputName}`);
@@ -275,13 +310,18 @@ app.use((error, req, res, next) => {
 });
 
 // Utility Functions
+function parseBool(value, defaultValue = true) {
+    if (value === undefined || value === null) return defaultValue;
+    return !['false', '0', 'no', 'off'].includes(String(value).toLowerCase());
+}
+
 async function runMdToPdf(inputFile, outputFile, title, requestBody = {}, imageMap = {}) {
     try {
         await mdToPdf(inputFile, outputFile, {
             title: title,
             author: requestBody.author || undefined,
-            coverPage: requestBody.coverPage !== 'false',
-            toc: requestBody.toc !== 'false',
+            coverPage: parseBool(requestBody.coverPage, true),
+            toc: parseBool(requestBody.toc, true),
             watermark: requestBody.watermark || undefined,
             imageMap: imageMap
         });
@@ -296,7 +336,7 @@ function sanitizeFilename(filename) {
         .replace(/\s+/g, '_')
         .replace(/\.+/g, '.')
         .substring(0, 255)
-        .trim();
+        .trim() || 'unnamed';
 }
 
 function cleanupFiles(files) {
@@ -361,10 +401,8 @@ function gracefulShutdown(server) {
         try {
             [CONFIG.UPLOAD_DIR, CONFIG.OUTPUT_DIR].forEach(dir => {
                 if (fs.existsSync(dir)) {
-                    const files = fs.readdirSync(dir);
-                    files.forEach(file => {
-                        fs.unlinkSync(path.join(dir, file));
-                    });
+                    fs.rmSync(dir, { recursive: true, force: true });
+                    fs.mkdirSync(dir, { recursive: true });
                 }
             });
             console.log('Cleaned up temporary files');

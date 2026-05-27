@@ -1,10 +1,20 @@
-import { fileURLToPath } from 'url';
-import fs from "fs";
-import path from "path";
+import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
 import { Marked } from "marked";
 import markedKatex from "marked-katex-extension";
 import puppeteer from "puppeteer";
 import { PDFDocument } from "pdf-lib";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const PRISM_CSS_URL = `file:///${path.join(__dirname, 'node_modules/prismjs/themes/prism.min.css').replace(/\\/g, '/')}`;
+const KATEX_CSS_URL = `file:///${path.join(__dirname, 'node_modules/katex/dist/katex.min.css').replace(/\\/g, '/')}`;
+const PRISM_CORE_JS_URL = `file:///${path.join(__dirname, 'node_modules/prismjs/components/prism-core.min.js').replace(/\\/g, '/')}`;
+const PRISM_AUTOLOADER_JS_URL = `file:///${path.join(__dirname, 'node_modules/prismjs/plugins/autoloader/prism-autoloader.min.js').replace(/\\/g, '/')}`;
+const KATEX_JS_URL = `file:///${path.join(__dirname, 'node_modules/katex/dist/katex.min.js').replace(/\\/g, '/')}`;
+const KATEX_AUTO_RENDER_JS_URL = `file:///${path.join(__dirname, 'node_modules/katex/dist/contrib/auto-render.min.js').replace(/\\/g, '/')}`;
 
 // Configuration
 // Configure marked with KaTeX for local instance use
@@ -400,17 +410,18 @@ const INLINE_STYLES = `
 `;
 
 // Nested PDF Bookmarks
-async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
-    const pdfDoc = await PDFDocument.load(pdfBuffer);
+async function addBookmarksToPdf(pdfDoc, bookmarks) {
     const pages = pdfDoc.getPages();
 
     if (bookmarks.length === 0) {
-        fs.writeFileSync(outputPath, await pdfDoc.save());
         return;
     }
 
     const context = pdfDoc.context;
-    const pageHeight = pages[0].getHeight();
+    // Puppeteer margins: top 0.5in + bottom 0.8in = 1.3in.
+    // A4 height = 11.69in. Usable = 11.69 - 1.3 = 10.39in at 96dpi ≈ 997.44px
+    const contentPageHeight = 10.39 * 96;
+    const pdfPageHeight = pages[0].getHeight();
     const outlineRef = context.nextRef();
 
     // Build hierarchical bookmark structure
@@ -421,7 +432,7 @@ async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
         const item = {
             title: bookmark.title,
             level: bookmark.level,
-            pageNum: Math.min(Math.max(0, Math.floor(bookmark.top / pageHeight)), pages.length - 1),
+            pageNum: Math.min(Math.max(0, Math.floor(bookmark.top / contentPageHeight)), pages.length - 1),
             children: [],
             ref: context.nextRef()
         };
@@ -445,7 +456,7 @@ async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
         const itemDict = {
             Title: context.obj(item.title),
             Parent: parentRef,
-            Dest: [page.ref, 'XYZ', null, pageHeight, null]
+            Dest: [page.ref, 'XYZ', null, pdfPageHeight, null]
         };
 
         // Process children recursively
@@ -488,8 +499,6 @@ async function addBookmarksToPdf(pdfBuffer, outputPath, bookmarks) {
 
     context.assign(outlineRef, outlineDict);
     pdfDoc.catalog.set(context.obj('Outlines'), outlineRef);
-
-    fs.writeFileSync(outputPath, await pdfDoc.save());
 }
 
 // Main Conversion Function
@@ -523,7 +532,36 @@ function escapeHtml(str) {
     return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+const MAX_CONCURRENT = 3;
+let activeConversions = 0;
+const conversionQueue = [];
+
+async function acquireSlot() {
+    if (activeConversions < MAX_CONCURRENT) {
+        activeConversions++;
+        return;
+    }
+    return new Promise(resolve => conversionQueue.push(resolve));
+}
+
+function releaseSlot() {
+    activeConversions--;
+    if (conversionQueue.length > 0) {
+        activeConversions++;
+        conversionQueue.shift()();
+    }
+}
+
 export async function mdToPdf(inputFile, outputFile, options = {}) {
+    await acquireSlot();
+    try {
+        await _mdToPdf(inputFile, outputFile, options);
+    } finally {
+        releaseSlot();
+    }
+}
+
+async function _mdToPdf(inputFile, outputFile, options = {}) {
     const markdown = fs.readFileSync(inputFile, "utf-8");
     const headings = [];
 
@@ -534,12 +572,12 @@ export async function mdToPdf(inputFile, outputFile, options = {}) {
     const renderer = {
         heading(text, level, raw) {
             const id = raw.toLowerCase().replace(/[^\w]+/g, '-');
-            headings.push({ level, text: raw, id });
+            headings.push({ level, text: raw, id }); // Store raw for text, we escape it later in TOC, or store `text` which is HTML
             return `<h${level} id="${id}" class="section-heading level-${level}">${text}</h${level}>`;
         },
-        code(code, language) {
-            const lang = language || 'plaintext';
-            const validLang = lang.toLowerCase();
+        code(code, lang) {
+            const language = lang || 'plaintext';
+            const validLang = language.toLowerCase();
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -618,8 +656,8 @@ export async function mdToPdf(inputFile, outputFile, options = {}) {
             <ul id="toc">
                 ${headings.map((h) => `
                     <li style="margin-left: ${(h.level - 1) * 1.5}em">
-                        <a href="#${h.id}">
-                            ${h.text}
+                        <a href="#${escapeHtml(h.id)}">
+                            ${escapeHtml(h.text)}
                         </a>
                     </li>
                 `).join('')}
@@ -628,7 +666,7 @@ export async function mdToPdf(inputFile, outputFile, options = {}) {
     ` : '';
 
     // Watermark HTML
-    const watermarkHtml = options.watermark ? `<img class="watermark" src="${options.watermark}" alt="Watermark">` : '';
+    const watermarkHtml = options.watermark ? `<img class="watermark" src="${escapeHtml(options.watermark)}" alt="Watermark">` : '';
 
     // Rendering with fallback
     const html = `
@@ -638,8 +676,8 @@ export async function mdToPdf(inputFile, outputFile, options = {}) {
     <meta charset="utf-8">
     <title>${documentTitle}</title>
     
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+    <link rel="stylesheet" href="${PRISM_CSS_URL}">
+    <link rel="stylesheet" href="${KATEX_CSS_URL}">
 
     <style>${INLINE_STYLES}</style>
 </head>
@@ -651,10 +689,10 @@ export async function mdToPdf(inputFile, outputFile, options = {}) {
         ${resolvedContent}
     </article>
     
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+    <script src="${PRISM_CORE_JS_URL}"></script>
+    <script src="${PRISM_AUTOLOADER_JS_URL}"></script>
+    <script src="${KATEX_JS_URL}"></script>
+    <script src="${KATEX_AUTO_RENDER_JS_URL}"></script>
 
     <script>
         // Rendering with timeout fallback
@@ -828,17 +866,16 @@ export async function mdToPdf(inputFile, outputFile, options = {}) {
     pdfDoc.setCreationDate(new Date());
     pdfDoc.setModificationDate(new Date());
 
-    const pdfWithMetadata = await pdfDoc.save();
-
     // Add bookmarks to the PDF with metadata
     if (bookmarkData.length > 0) {
         console.log(`Injecting ${bookmarkData.length} nested bookmarks...`);
-        await addBookmarksToPdf(pdfWithMetadata, outputFile, bookmarkData);
+        await addBookmarksToPdf(pdfDoc, bookmarkData);
         console.log(`Success! Professional PDF created: ${outputFile}`);
     } else {
-        fs.writeFileSync(outputFile, pdfWithMetadata);
         console.log(`Success! PDF created: ${outputFile}`);
     }
+    
+    fs.writeFileSync(outputFile, await pdfDoc.save());
 }
 
 // CLI Parser
@@ -862,6 +899,7 @@ if (isCLI) {
             const value = args[i + 1];
 
             if (key === 'author' && value) { flags.author = value; i++; }
+            else if (key === 'title' && value) { flags.title = value; i++; }
             else if (key === 'subject' && value) { flags.subject = value; i++; }
             else if (key === 'keywords' && value) { flags.keywords = value.split(',').map(k => k.trim()); i++; }
             else if (key === 'help' || key === 'h') {
@@ -876,6 +914,7 @@ POSITIONAL ARGUMENTS:
   output.pdf        Output PDF file (default: input name with .pdf extension)
 
 OPTIONS:
+  --title "Title"           Set PDF title metadata
   --author "Name"           Set PDF author metadata
   --subject "Topic"         Set PDF subject metadata
   --keywords "k1,k2,k3"     Set PDF keywords (comma-separated)
