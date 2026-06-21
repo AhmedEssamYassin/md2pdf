@@ -28,6 +28,7 @@
         "katex": "^0.17.0",
         "marked": "^9.1.2",
         "marked-katex-extension": "^5.0.1",
+        "mermaid": "^11.15.0",
         "multer": "^2.0.0-rc.4",
         "pdf-lib": "^1.17.1",
         "prismjs": "^1.30.0",

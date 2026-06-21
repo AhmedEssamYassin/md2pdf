@@ -267,3 +267,71 @@ What happens if a table has too many columns? Will Chromium cleanly shrink them 
 ## 9. Testing embedding and image
 
 ![A generic test image](./system%20design%20UML.png)
+
+## 10. Mermaid Diagram Rendering Tests
+
+Below are three tests designed to verify how our PDF engine handles Mermaid diagrams, specifically verifying page boundary containment for normal, wide, and long diagrams.
+
+### 10.1 Standard Diagram (Vertical Flow)
+
+```mermaid
+graph TD
+    User([User]) -->|Uploads Markdown| Client[Web Client]
+    Client -->|POST /api/convert| Express[Express Server]
+    Express -->|Generates HTML template| Converter[md2pdf-converter]
+    Converter -->|Launches Headless Context| Puppeteer[Puppeteer Browser]
+    Puppeteer -->|Loads Mermaid.js & KaTeX| RenderEngine[Rendering Engine]
+    RenderEngine -->|Executes Mermaid.run| SVG[Vector SVGs]
+    Puppeteer -->|Prints A4 PDF| PDFBuffer[PDF Buffer]
+    PDFBuffer -->|Appends Outlines & Metadata| PDFLib[PDF-lib Metadata]
+    PDFLib -->|Returns PDF Binary| Express
+    Express -->|Downloads PDF File| User
+```
+
+### 10.2 Extremely Wide Diagram (Horizontal Scaling Test)
+
+This horizontal flowchart spans 10 nodes left-to-right. The conversion engine should scale it down to fit within the standard page margins without running off the page.
+
+```mermaid
+graph LR
+    NodeA[First State Node A] --> NodeB[Second State Node B] --> NodeC[Third State Node C] --> NodeD[Fourth State Node D] --> NodeE[Fifth State Node E] --> NodeF[Sixth State Node F] --> NodeG[Seventh State Node G] --> NodeH[Eighth State Node H] --> NodeI[Ninth State Node I] --> NodeJ[Tenth State Node J]
+```
+
+### 10.3 Extremely Long Diagram (Vertical Scaling Test)
+
+This deep top-to-bottom branching structure consists of over 25 nodes. The engine should automatically scale this down to fit within the vertical boundaries of a single A4 page.
+
+```mermaid
+graph TD
+    A[Root Node A] --> B[Branch Node B]
+    A --> C[Branch Node C]
+    B --> D[Process D1]
+    B --> E[Process D2]
+    C --> F[Process E1]
+    C --> G[Process E2]
+    D --> H[Sub-process H1]
+    D --> I[Sub-process H2]
+    E --> J[Sub-process I1]
+    E --> K[Sub-process I2]
+    F --> L[Sub-process J1]
+    F --> M[Sub-process J2]
+    G --> N[Sub-process K1]
+    G --> O[Sub-process K2]
+    H --> P[Decision P]
+    I --> P
+    J --> Q[Decision Q]
+    K --> Q
+    L --> R[Decision R]
+    M --> R
+    N --> S[Decision S]
+    O --> S
+    P --> T[Outcome T]
+    Q --> T
+    R --> U[Outcome U]
+    S --> U
+    T --> V[Final Output V1]
+    U --> W[Final Output V2]
+    V --> Z([System End])
+    W --> Z
+```
+

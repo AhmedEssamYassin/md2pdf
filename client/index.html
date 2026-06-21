@@ -8,21 +8,31 @@
     <title>Markdown to PDF Converter</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700&display=swap"
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
 </head>
 
-<body class="m-0 bg-[#0a0e27] grid-background min-h-screen flex items-center justify-center p-5 text-slate-200">
+<body class="m-0 bg-slate-900 bg-gradient-to-tr from-slate-950 via-slate-900 to-indigo-950/20 min-h-screen flex items-center justify-center p-5 text-slate-200">
     <div
-        class="container bg-slate-800 rounded-lg shadow-[0_0_0_1px_rgba(59,130,246,0.3),0_20px_40px_rgba(0,0,0,0.5)] border border-blue-500/20 w-full max-w-2xl overflow-hidden animate-slide-up relative top-gradient">
+        class="container bg-slate-800/80 backdrop-blur-md rounded-xl shadow-2xl border border-slate-700/60 w-full max-w-2xl overflow-hidden animate-slide-up relative">
+        <!-- Prominent Features Button in Top Right -->
+        <button id="infoBtn" class="absolute top-4 right-4 flex items-center gap-1.5 bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 py-1.5 px-3.5 rounded-full text-xs font-semibold tracking-wide transition-all duration-200 hover:shadow-[0_0_12px_rgba(99,102,241,0.15)] cursor-pointer" title="Application Features">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            Features
+        </button>
+
         <!-- Header -->
         <div class="header pt-10 px-10 pb-0 text-center">
-            <h1 class="text-3xl sm:text-2xl font-bold text-blue-500 m-0 mb-3 tracking-tight title-before title-after">
-                MD → PDF
+            <h1 class="text-3xl font-extrabold text-white m-0 mb-2 tracking-tight heading-serif">
+                Markdown to PDF
             </h1>
-            <p class="text-slate-400 text-sm sm:text-xs font-normal m-0 subtitle-comment">
-                Convert your Markdown files to beautiful PDFs
+            <p class="text-slate-400 text-sm font-normal m-0 leading-relaxed font-sans">
+                Convert your Markdown documents into publication-quality PDFs.
             </p>
         </div>
 
@@ -30,26 +40,24 @@
         <div class="main-content p-10 sm:p-[30px]">
             <!-- Drop Zone -->
             <div id="dropZone"
-                class="drop-zone border-2 border-dashed border-slate-700 rounded-md p-16 sm:py-10 sm:px-5 text-center bg-slate-950 transition-all duration-300 relative overflow-hidden cursor-pointer hover:border-blue-500 hover:bg-slate-800">
+                class="drop-zone border border-dashed border-slate-700 hover:border-indigo-500/50 rounded-xl p-16 sm:py-10 sm:px-5 text-center bg-slate-900/30 transition-all duration-300 relative overflow-hidden cursor-pointer">
                 <div class="drop-zone-overlay hidden"></div>
 
-                <div class="drop-zone-content relative z-10">
+                <div class="drop-zone-content relative z-10 font-sans">
                     <div
-                        class="upload-icon w-16 h-16 mx-auto mb-5 rounded bg-slate-700 flex items-center justify-center border-2 border-blue-500 transition-all duration-300">
-                        <svg class="upload-svg w-8 h-8 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd"
-                                d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z"
-                                clip-rule="evenodd"></path>
+                        class="upload-icon w-16 h-16 mx-auto mb-5 rounded-xl bg-slate-800/50 border border-slate-700 flex items-center justify-center transition-all duration-300">
+                        <svg class="upload-svg w-8 h-8 text-slate-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5h10.5a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0017.25 4.5H6.75A2.25 2.25 0 004.5 6.75v10.5a2.25 2.25 0 002.25 2.25z"></path>
                         </svg>
                     </div>
-                    <h3 class="text-xl font-semibold m-0 mb-2 text-slate-50">
+                    <h3 class="text-lg font-semibold m-0 mb-1.5 text-slate-100 font-sans">
                         Drag & drop Markdown & Image files here
                     </h3>
-                    <p class="text-slate-400 text-sm m-0 mb-6">
+                    <p class="text-slate-400 text-xs m-0 mb-6 font-sans">
                         or click to browse your files
                     </p>
                     <button id="selectFileButton"
-                        class="bg-blue-500 text-white border border-blue-400 py-2.5 px-6 rounded font-medium text-sm cursor-pointer transition-all duration-200 hover:bg-blue-600 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(59,130,246,0.3)]"
+                        class="bg-indigo-600 text-white py-2.5 px-6 rounded-lg font-medium text-xs cursor-pointer transition-all duration-200 hover:bg-indigo-500 hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(99,102,241,0.2)]"
                         type="button">
                         Select Files
                     </button>
@@ -60,22 +68,22 @@
 
             <!-- File Info -->
             <div id="fileInfo"
-                class="file-info hidden bg-slate-950 border border-slate-700 rounded-md p-5 mt-5 animate-fade-in">
+                class="file-info hidden bg-slate-900/50 border border-slate-700/50 rounded-xl p-5 mt-5 animate-fade-in font-sans">
                 <div id="fileList"></div>
             </div>
 
             <!-- Output Section -->
-            <div class="output-section mt-8 pt-8 border-t border-slate-700">
-                <div class="output-name-section mb-6">
+            <div class="output-section mt-8 pt-8 border-t border-slate-700/50">
+                <div class="output-name-section mb-6 font-sans">
                     <label for="outputName" class="block font-medium text-slate-200 mb-2 text-sm">
                         Output file name (or zip file name if more than one file) (optional)
                     </label>
                     <input type="text" id="outputName" placeholder="Leave empty to use input filename"
-                        class="w-full py-2.5 px-3 border border-slate-700 rounded-lg text-sm transition-all duration-200 bg-slate-950 text-slate-200 focus:outline-none focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]">
+                        class="w-full py-2.5 px-3 border border-slate-700/60 rounded-lg text-sm transition-all duration-200 bg-slate-900 text-slate-200 focus:outline-none focus:border-indigo-500 focus:shadow-[0_0_0_3px_rgba(99,102,241,0.15)] font-sans">
                 </div>
 
                 <button id="convertBtn" disabled
-                    class="inline-flex items-center justify-center gap-2 w-full bg-slate-600 text-white border border-slate-500 py-3 px-3 rounded font-semibold text-sm cursor-not-allowed transition-all duration-200 relative overflow-hidden disabled:translate-y-0 enabled:bg-emerald-500 enabled:border-emerald-400 enabled:cursor-pointer enabled:hover:bg-emerald-600 enabled:hover:-translate-y-0.5 enabled:hover:shadow-[0_4px_12px_rgba(16,185,129,0.3)] [&.processing]:bg-amber-500 [&.processing]:border-amber-400">
+                    class="inline-flex items-center justify-center gap-2 w-full bg-slate-700 text-white/50 border border-slate-600/50 py-3 px-3 rounded-lg font-semibold text-sm cursor-not-allowed transition-all duration-200 relative overflow-hidden disabled:translate-y-0 enabled:bg-indigo-600 enabled:border-indigo-500 enabled:text-white enabled:cursor-pointer enabled:hover:bg-indigo-500 enabled:hover:-translate-y-0.5 enabled:hover:shadow-[0_4px_12px_rgba(99,102,241,0.3)] [&.processing]:bg-amber-500 [&.processing]:border-amber-400 font-sans">
                     <span id="spinner"
                         class="spinner hidden border-2 border-white/30 rounded-full border-t-white mr-2 size-4 animate-spin"></span>
                     <span id="convertText"></span>
@@ -87,10 +95,114 @@
         </div>
 
         <!-- Footer -->
-        <div class="footer py-5 px-10 sm:py-[15px] sm:px-[30px] bg-slate-950 text-center border-t border-slate-700">
-            <p class="text-slate-500 text-xs m-0">
-                Powered by Puppeteer • Supports KaTeX & Syntax Highlighting
+        <div class="footer py-5 px-10 sm:py-[15px] sm:px-[30px] bg-slate-900/30 text-center border-t border-slate-700/50">
+            <p class="text-slate-500 text-xs m-0 font-sans">
+                Powered by Puppeteer • Supports KaTeX, PrismJS & Mermaid
             </p>
+        </div>
+    </div>
+
+    <!-- Info Modal -->
+    <div id="infoModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm hidden transition-all duration-300 opacity-0">
+        <div class="bg-slate-900 border border-slate-700/50 rounded-xl shadow-2xl max-w-lg w-full overflow-hidden transform scale-95 transition-all duration-300 flex flex-col max-h-[85vh]">
+            <!-- Modal Header -->
+            <div class="px-6 py-4 border-b border-slate-800 flex justify-between items-center bg-slate-950/30">
+                <h2 class="text-xl font-bold text-blue-500 flex items-center gap-2 m-0 font-sans">
+                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Unique Features
+                </h2>
+                <button id="closeInfoBtn" class="text-slate-400 hover:text-white transition-colors p-1.5 rounded-lg hover:bg-slate-800 cursor-pointer">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <!-- Modal Content -->
+            <div class="px-6 py-5 overflow-y-auto space-y-4 text-slate-300 max-h-[60vh] custom-scrollbar">
+                <p class="text-sm text-slate-400 leading-relaxed mb-2 font-sans">
+                    Our Markdown to PDF Converter is engineered with advanced document-typesetting features designed for publication-quality rendering:
+                </p>
+                <div class="space-y-3">
+                    <!-- Feature Card: GitHub Alerts -->
+                    <div class="flex gap-4 p-3.5 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-blue-500/30 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 rounded bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                            <!-- Alert icon -->
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-100 mb-0.5 font-sans">GitHub Alerts & Elements</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed font-sans font-normal">Fully supports standard GitHub-flavored markdown blocks including Note, Tip, Important, Warning, and Caution with icons and matching colors.</p>
+                        </div>
+                    </div>
+
+                    <!-- Feature Card: Path-Agnostic Image Resolution -->
+                    <div class="flex gap-4 p-3.5 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-emerald-500/30 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 rounded bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                            <!-- Image icon -->
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-100 mb-0.5 font-sans">Path-Agnostic Images</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed font-sans font-normal">Upload local images alongside your markdown file, and they will render without needing any changes to your local paths or manual link adjustments.</p>
+                        </div>
+                    </div>
+
+                    <!-- Feature Card: Long Tables & Bookmarks -->
+                    <div class="flex gap-4 p-3.5 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-purple-500/30 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 rounded bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                            <!-- Table/List icon -->
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-100 mb-0.5 font-sans">Repeating Tables & Outlines</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed font-sans font-normal">Tables break naturally across pages while repeating table headers automatically. Headings are compiled into native PDF bookmarks for easy outline navigation.</p>
+                        </div>
+                    </div>
+
+                    <!-- Feature Card: Splitted Content & Stale Sections -->
+                    <div class="flex gap-4 p-3.5 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-amber-500/30 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 rounded bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                            <!-- Shield/Check icon -->
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-100 mb-0.5 font-sans">Orphan & Split Protection</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed font-sans font-normal">A custom typesetting layout pass ensures that headings never stand alone (orphans) and prevents lists, code blocks, or tables from splitting awkwardly.</p>
+                        </div>
+                    </div>
+
+                    <!-- Feature Card: Mermaid Diagrams -->
+                    <div class="flex gap-4 p-3.5 rounded-lg bg-slate-800/40 border border-slate-700/50 hover:border-pink-500/30 transition-colors">
+                        <div class="flex-shrink-0 w-10 h-10 rounded bg-pink-500/10 border border-pink-500/30 flex items-center justify-center text-pink-400">
+                            <!-- Diagram icon -->
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-slate-100 mb-0.5 font-sans">Auto-Scaled Mermaid Diagrams</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed font-sans font-normal">Compiles Mermaid syntax blocks into native vector SVG diagrams. Features smart auto-scaling to prevent wide or long diagrams from clipping.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Modal Footer -->
+            <div class="px-6 py-4 border-t border-slate-800 bg-slate-950/20 flex justify-end">
+                <button id="closeInfoFooterBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-5 rounded-lg text-sm transition-colors cursor-pointer font-sans">
+                    Got it
+                </button>
+            </div>
         </div>
     </div>
 

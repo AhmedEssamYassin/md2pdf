@@ -15,6 +15,7 @@ const PRISM_CORE_JS_URL = `file:///${path.join(__dirname, 'node_modules/prismjs/
 const PRISM_AUTOLOADER_JS_URL = `file:///${path.join(__dirname, 'node_modules/prismjs/plugins/autoloader/prism-autoloader.min.js').replace(/\\/g, '/')}`;
 const KATEX_JS_URL = `file:///${path.join(__dirname, 'node_modules/katex/dist/katex.min.js').replace(/\\/g, '/')}`;
 const KATEX_AUTO_RENDER_JS_URL = `file:///${path.join(__dirname, 'node_modules/katex/dist/contrib/auto-render.min.js').replace(/\\/g, '/')}`;
+const MERMAID_JS_URL = `file:///${path.join(__dirname, 'node_modules/mermaid/dist/mermaid.min.js').replace(/\\/g, '/')}`;
 
 // Configuration
 // Configure marked with KaTeX for local instance use
@@ -407,6 +408,26 @@ const INLINE_STYLES = `
         page-break-inside: avoid;
         break-inside: avoid;
     }
+
+    pre.mermaid {
+        background-color: transparent !important;
+        border: none !important;
+        padding: 0 !important;
+        margin: 1.5em auto !important;
+        overflow: visible !important;
+        display: flex;
+        justify-content: center;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    .mermaid svg {
+        max-width: 100% !important;
+        max-height: 8.5in !important;
+        height: auto !important;
+        width: auto !important;
+        display: block;
+        margin: 0 auto;
+    }
 `;
 
 // Nested PDF Bookmarks
@@ -578,6 +599,9 @@ async function _mdToPdf(inputFile, outputFile, options = {}) {
         code(code, lang) {
             const language = lang || 'plaintext';
             const validLang = language.toLowerCase();
+            if (validLang === 'mermaid') {
+                return `<div class="mermaid-container no-break"><pre class="mermaid">${escapeHtml(code)}</pre></div>`;
+            }
             const map = {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -693,6 +717,7 @@ async function _mdToPdf(inputFile, outputFile, options = {}) {
     <script src="${PRISM_AUTOLOADER_JS_URL}"></script>
     <script src="${KATEX_JS_URL}"></script>
     <script src="${KATEX_AUTO_RENDER_JS_URL}"></script>
+    <script src="${MERMAID_JS_URL}"></script>
 
     <script>
         // Rendering with timeout fallback
@@ -745,6 +770,33 @@ async function _mdToPdf(inputFile, outputFile, options = {}) {
                         console.error('✗ Prism error:', e);
                         resolve();
                     }
+                }),
+
+                // Render Mermaid diagrams
+                new Promise((resolve) => {
+                    try {
+                        const elements = document.querySelectorAll('.mermaid');
+                        if (elements.length > 0 && window.mermaid) {
+                            mermaid.initialize({
+                                startOnLoad: false,
+                                theme: 'default',
+                                securityLevel: 'loose',
+                                flowchart: { useMaxWidth: false, htmlLabels: true }
+                            });
+                            mermaid.run().then(() => {
+                                console.log('✓ Mermaid rendered');
+                                resolve();
+                            }).catch((err) => {
+                                console.error('✗ Mermaid run error:', err);
+                                resolve();
+                            });
+                        } else {
+                            resolve();
+                        }
+                    } catch(e) {
+                        console.error('✗ Mermaid error:', e);
+                        resolve();
+                    }
                 })
             ]).then(() => {
                 clearTimeout(renderTimeout);
@@ -773,7 +825,7 @@ async function _mdToPdf(inputFile, outputFile, options = {}) {
         // to a temporary file and navigate directly to it to establish a valid file:// origin.
         fs.writeFileSync(htmlPath, html, 'utf8');
         const fileUrl = `file:///${path.resolve(htmlPath).replace(/\\/g, '/')}`;
-        
+
         await page.goto(fileUrl, { waitUntil: 'networkidle0' });
 
         console.log("Waiting for rendering (Math + Syntax highlighting)...");
@@ -874,7 +926,7 @@ async function _mdToPdf(inputFile, outputFile, options = {}) {
     } else {
         console.log(`Success! PDF created: ${outputFile}`);
     }
-    
+
     fs.writeFileSync(outputFile, await pdfDoc.save());
 }
 

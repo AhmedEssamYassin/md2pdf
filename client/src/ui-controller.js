@@ -12,7 +12,11 @@ export class UIController {
             removeFileBtn: document.getElementById('removeFileBtn'),
             convertText: document.getElementById('convertText'),
             spinner: document.getElementById('spinner'),
-            statusMessage: document.getElementById('statusMessage')
+            statusMessage: document.getElementById('statusMessage'),
+            infoBtn: document.getElementById('infoBtn'),
+            infoModal: document.getElementById('infoModal'),
+            closeInfoBtn: document.getElementById('closeInfoBtn'),
+            closeInfoFooterBtn: document.getElementById('closeInfoFooterBtn')
         };
 
         this.validateDOM();
@@ -21,7 +25,7 @@ export class UIController {
     validateDOM() {
         const required = [
             "dropZone", "fileInput", "fileInfo", "outputName", "convertBtn",
-            "convertText", "statusMessage"
+            "convertText", "statusMessage", "infoBtn", "infoModal", "closeInfoBtn", "closeInfoFooterBtn"
         ];
         const missing = required.filter(k => !this.DOM[k]);
         if (missing.length > 0) throw new Error(`Missing DOM: ${missing.join(", ")}`);
@@ -36,12 +40,12 @@ export class UIController {
 
         this.DOM.fileList.innerHTML = files.map(file => `
         <div class="flex items-center gap-3 relative mb-3 last:mb-0">
-            <div class="w-10 h-10 bg-slate-700 border border-blue-500 rounded flex items-center justify-center text-blue-500 font-semibold text-xs">${file.icon}</div>
+            <div class="w-10 h-10 bg-slate-800 border border-slate-700 rounded-lg flex items-center justify-center text-slate-400 font-semibold text-xs">${file.icon}</div>
             <div class="flex-1">
                 <div class="font-semibold text-slate-50 mb-1 text-sm">${file.name}</div>
                 <div class="text-slate-400 text-xs">${file.size}</div>
             </div>
-            <button class="remove-file-btn bg-red-600 border border-red-500 rounded w-8 h-8 flex items-center justify-center text-white cursor-pointer transition-all duration-200 hover:bg-red-700 hover:scale-105 active:scale-95" data-index="${file.index}" title="Remove file">
+            <button class="remove-file-btn bg-red-950/40 border border-red-900/50 rounded-lg w-8 h-8 flex items-center justify-center text-red-400 cursor-pointer transition-all duration-200 hover:bg-red-900/40 hover:scale-105 active:scale-95" data-index="${file.index}" title="Remove file">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -99,5 +103,30 @@ export class UIController {
         const el = this.DOM.statusMessage;
         el.classList.remove("status-success", "status-error");
         el.classList.add("hidden");
+    }
+
+    showInfoModal() {
+        const modal = this.DOM.infoModal;
+        modal.classList.remove('hidden');
+        modal.offsetHeight; // Force reflow
+        modal.classList.add('opacity-100');
+        const modalContainer = modal.querySelector('.transform');
+        if (modalContainer) {
+            modalContainer.classList.remove('scale-95');
+            modalContainer.classList.add('scale-100');
+        }
+    }
+
+    hideInfoModal() {
+        const modal = this.DOM.infoModal;
+        modal.classList.remove('opacity-100');
+        const modalContainer = modal.querySelector('.transform');
+        if (modalContainer) {
+            modalContainer.classList.remove('scale-100');
+            modalContainer.classList.add('scale-95');
+        }
+        setTimeout(() => {
+            modal.classList.add('hidden');
+        }, 300);
     }
 }

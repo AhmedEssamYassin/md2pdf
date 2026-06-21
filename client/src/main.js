@@ -34,6 +34,16 @@ class App {
         // Only add remove button listener if the element exists
         if (DOM.removeFileBtn) { DOM.removeFileBtn.addEventListener("click", () => this.handleRemoveFile()); }
 
+        // Info modal handlers
+        DOM.infoBtn.addEventListener("click", () => this.ui.showInfoModal());
+        DOM.closeInfoBtn.addEventListener("click", () => this.ui.hideInfoModal());
+        DOM.closeInfoFooterBtn.addEventListener("click", () => this.ui.hideInfoModal());
+        DOM.infoModal.addEventListener("click", (e) => {
+            if (e.target === DOM.infoModal) {
+                this.ui.hideInfoModal();
+            }
+        });
+
         // Prevent default drag behavior on document
         document.addEventListener("dragover", e => e.preventDefault());
         document.addEventListener("drop", e => e.preventDefault());
